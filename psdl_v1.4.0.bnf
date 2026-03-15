@@ -1,0 +1,2152 @@
+(* ============================================================================ *)
+(*  PSDL v1.4.0 — Prompt Semantic Density Language                             *)
+(*  Complete Formal Grammar in Backus-Naur Form (BNF)                          *)
+(*                                                                              *)
+(*  Author  : Marcus @ automate.dev, Buenos Aires, Argentina                   *)
+(*  Version : 1.4.0                                                             *)
+(*  Date    : March 2026                                                        *)
+(*  License : Dual — MIT Core + Proprietary Enterprise                         *)
+(*                                                                              *)
+(*  This file constitutes the normative specification of the PSDL grammar.     *)
+(*  All production rules are numbered for cross-reference. Rules marked        *)
+(*  [LL2] require two-token lookahead in the PSDT parser. Rules marked         *)
+(*  [AR] contribute tokens to the AnchorRegistry in Phase 03.                  *)
+(*  Rules marked [OPT] are available only in Pro/Enterprise tiers.             *)
+(*                                                                              *)
+(*  Notation conventions:                                                       *)
+(*    <rule>        non-terminal symbol                                         *)
+(*    "token"       terminal literal (case-sensitive unless noted)              *)
+(*    A | B         ordered choice (first match wins — PEG semantics)           *)
+(*    A B           sequence                                                    *)
+(*    A?            optional (zero or one)                                      *)
+(*    A*            zero or more repetitions                                    *)
+(*    A+            one or more repetitions                                     *)
+(*    [ A ]         optional group (same as A?)                                 *)
+(*    { A }         zero or more repetitions (same as A*)                       *)
+(*    (* ... *)     comment — not part of the grammar                          *)
+(*    $001          rule number for cross-reference                             *)
+(* ============================================================================ *)
+
+
+(* ============================================================================ *)
+(*  SECTION 1 — PROGRAM STRUCTURE                                               *)
+(*  Rules $001 – $030                                                            *)
+(* ============================================================================ *)
+
+(* $001 *) <program>              ::= <preamble>? <statement_list> <eof>
+(* $002 *) <preamble>             ::= <version_directive> <newline>
+(* $003 *) <version_directive>    ::= "@psdl" <whitespace> <version_literal>
+(* $004 *) <version_literal>      ::= <digit>+ "." <digit>+ "." <digit>+
+(* $005 *) <statement_list>       ::= <statement>*
+(* $006 *) <statement>            ::= <agent_def>
+(* $007 *)                         | <schema_def>
+(* $008 *)                         | <shared_def>
+(* $009 *)                         | <directive_stmt>
+(* $010 *)                         | <import_stmt>
+(* $011 *)                         | <comment_line>
+(* $012 *)                         | <comment_block>
+(* $013 *)                         | <blank_line>
+(* $014 *) <blank_line>           ::= <newline>
+(* $015 *) <eof>                  ::= (* end of input stream *)
+(* $016 *) <top_level_item>       ::= <statement>
+(* $017 *) <compilation_unit>     ::= <program>
+(* $018 *) <source_file>          ::= <compilation_unit>
+(* $019 *) <module>               ::= <source_file>
+(* $020 *) <module_body>          ::= <statement_list>
+(* $021 *) <statement_separator>  ::= <semicolon> | <newline>
+(* $022 *) <semicolon>            ::= ";"
+(* $023 *) <colon>                ::= ":"
+(* $024 *) <comma>                ::= ","
+(* $025 *) <dot>                  ::= "."
+(* $026 *) <lbrace>               ::= "{"
+(* $027 *) <rbrace>               ::= "}"
+(* $028 *) <lbracket>             ::= "["
+(* $029 *) <rbracket>             ::= "]"
+(* $030 *) <lparen>               ::= "("
+
+
+(* ============================================================================ *)
+(*  SECTION 2 — AGENT DEFINITIONS                                               *)
+(*  Rules $031 – $090                                                            *)
+(* ============================================================================ *)
+
+(* $031 *) <agent_def>            ::= <agent_head> <agent_body_block>
+(* $032 *) <agent_head>           ::= "@" <agent_name> <inheritance>?            (* [LL2] *)
+(* $033 *) <agent_name>           ::= <identifier>                               (* [AR]  *)
+(* $034 *) <agent_body_block>     ::= <lbrace> <agent_body> <rbrace>
+(* $035 *) <agent_body>           ::= <agent_item>*
+(* $036 *) <agent_item>           ::= <property_stmt>
+(* $037 *)                         | <negation_stmt>
+(* $038 *)                         | <constraint_stmt>
+(* $039 *)                         | <pipeline_stmt>
+(* $040 *)                         | <focus_stmt>
+(* $041 *)                         | <context_stmt>
+(* $042 *)                         | <schema_ref_stmt>
+(* $043 *)                         | <target_stmt>
+(* $044 *)                         | <comment_line>
+(* $045 *)                         | <comment_block>
+(* $046 *)                         | <blank_line>
+(* $047 *) <inheritance>          ::= "<" <parent_list>                          (* [LL2] *)
+(* $048 *) <parent_list>          ::= <parent_name> <parent_tail>*
+(* $049 *) <parent_tail>          ::= <comma> <parent_name>
+(* $050 *) <parent_name>          ::= <identifier>                               (* [AR]  *)
+(* $051 *) <single_parent>        ::= "<" <parent_name>
+(* $052 *) <multi_parent>         ::= "<" <parent_name> <comma> <parent_list>
+(* $053 *) <agent_ref>            ::= "@" <identifier>                           (* [LL2] *)
+(* $054 *) <agent_ref_inline>     ::= "$" <identifier>
+(* $055 *) <resolved_agent>       ::= <agent_def>
+(* $056 *) <inherited_body>       ::= <agent_body>
+(* $057 *) <merged_body>          ::= <inherited_body> <agent_body>
+(* $058 *) <override_item>        ::= <agent_item>
+(* $059 *) <base_item>            ::= <agent_item>
+(* $060 *) <effective_body>       ::= <merged_body>
+(* $061 *) <property_stmt>        ::= <property_key> <colon> <property_value> <modifier_suffix>? <semicolon>
+(* $062 *) <property_key>         ::= <standard_key> | <user_key>
+(* $063 *) <standard_key>         ::= "task"
+(* $064 *)                         | "context"
+(* $065 *)                         | "stack"
+(* $066 *)                         | "tone"
+(* $067 *)                         | "format"
+(* $068 *)                         | "security"
+(* $069 *)                         | "target"
+(* $070 *)                         | "lang"
+(* $071 *)                         | "brand"
+(* $072 *)                         | "role"
+(* $073 *)                         | "persona"
+(* $074 *)                         | "memory"
+(* $075 *)                         | "tools"
+(* $076 *)                         | "output"
+(* $077 *)                         | "input"
+(* $078 *)                         | "model"
+(* $079 *)                         | "temperature"
+(* $080 *)                         | "max_tokens"
+(* $081 *)                         | "stop_sequences"
+(* $082 *)                         | "system"
+(* $083 *)                         | "user"
+(* $084 *)                         | "assistant"
+(* $085 *)                         | "version"
+(* $086 *)                         | "author"
+(* $087 *)                         | "license"
+(* $088 *)                         | "description"
+(* $089 *)                         | "name"
+(* $090 *) <user_key>             ::= <identifier>
+
+
+(* ============================================================================ *)
+(*  SECTION 3 — PROPERTY VALUES AND EXPRESSIONS                                 *)
+(*  Rules $091 – $160                                                            *)
+(* ============================================================================ *)
+
+(* $091 *) <property_value>       ::= <value_expr>
+(* $092 *) <value_expr>           ::= <pipeline_expr>
+(* $093 *) <pipeline_expr>        ::= <compose_expr> <pipeline_tail>*
+(* $094 *) <pipeline_tail>        ::= <arrow_op> <compose_expr>
+(* $095 *) <arrow_op>             ::= "->"                                       (* flow operator *)
+(* $096 *)                         | "\u2192"                                    (* → U+2192      *)
+(* $097 *) <compose_expr>         ::= <unary_expr> <compose_tail>*
+(* $098 *) <compose_tail>         ::= <ampersand_op> <unary_expr>               (* [LL2] *)
+(* $099 *) <ampersand_op>         ::= "&"
+(* $100 *) <unary_expr>           ::= <negation_prefix>? <primary_expr>
+(* $101 *) <negation_prefix>      ::= "~"
+(* $102 *) <primary_expr>         ::= <func_call_expr>
+(* $103 *)                         | <list_expr>
+(* $104 *)                         | <enum_expr>
+(* $105 *)                         | <context_ref>
+(* $106 *)                         | <agent_ref_inline>
+(* $107 *)                         | <string_literal>
+(* $108 *)                         | <number_literal>
+(* $109 *)                         | <boolean_literal>
+(* $110 *)                         | <duration_literal>
+(* $111 *)                         | <url_literal>
+(* $112 *)                         | <identifier_expr>
+(* $113 *)                         | <grouped_expr>
+(* $114 *) <grouped_expr>         ::= <lparen> <value_expr> <rparen>
+(* $115 *) <rparen>               ::= ")"
+(* $116 *) <identifier_expr>      ::= <qualified_identifier> | <simple_identifier_expr>
+(* $117 *) <simple_identifier_expr> ::= <identifier>
+(* $118 *) <qualified_identifier> ::= <identifier> <dot> <identifier>
+(* $119 *) <qualified_path>       ::= <identifier> <dot_path_tail>+
+(* $120 *) <dot_path_tail>        ::= <dot> <identifier>
+(* $121 *) <context_ref>          ::= "$" <identifier>
+(* $122 *) <context_ref_named>    ::= "$" <identifier> <dot> <identifier>
+(* $123 *) <context_ref_indexed>  ::= "$" <identifier> "[" <index_expr> "]"
+(* $124 *) <index_expr>           ::= <integer_literal> | <string_literal>
+(* $125 *) <spread_expr>          ::= "..." <identifier>
+(* $126 *) <coerce_expr>          ::= <primary_expr> "as" <type_expr>
+(* $127 *) <cast_expr>            ::= <type_expr> "(" <primary_expr> ")"
+(* $128 *) <conditional_expr>     ::= <guard_expr> "?" <value_expr> ":" <value_expr>
+(* $129 *) <guard_expr>           ::= <condition_expr>
+(* $130 *) <null_literal>         ::= "null" | "nil" | "none"
+(* $131 *) <empty_value>          ::= <null_literal>
+(* $132 *) <placeholder>          ::= "_"
+(* $133 *) <wildcard>             ::= "*"
+(* $134 *) <any_value>            ::= <wildcard>
+(* $135 *) <value_list>           ::= <value_expr> <comma_value_tail>*
+(* $136 *) <comma_value_tail>     ::= <comma> <value_expr>
+(* $137 *) <non_empty_value_list> ::= <value_expr> <comma_value_tail>*
+(* $138 *) <value_pair>           ::= <value_expr> <colon> <value_expr>
+(* $139 *) <value_pair_list>      ::= <value_pair> <comma_pair_tail>*
+(* $140 *) <comma_pair_tail>      ::= <comma> <value_pair>
+(* $141 *) <tagged_value>         ::= <identifier> "=" <value_expr>
+(* $142 *) <tagged_value_list>    ::= <tagged_value> <comma_tagged_tail>*
+(* $143 *) <comma_tagged_tail>    ::= <comma> <tagged_value>
+(* $144 *) <kv_pair>              ::= <string_literal> ":" <value_expr>
+(* $145 *) <kv_map>               ::= <lbrace> <kv_pair_list>? <rbrace>
+(* $146 *) <kv_pair_list>         ::= <kv_pair> <comma_kv_tail>*
+(* $147 *) <comma_kv_tail>        ::= <comma> <kv_pair>
+(* $148 *) <inline_block>         ::= <lbrace> <agent_body> <rbrace>
+(* $149 *) <value_block>          ::= <inline_block>
+(* $150 *) <code_block>           ::= "```" <language_tag>? <newline> <raw_text> "```"
+(* $151 *) <language_tag>         ::= <identifier>
+(* $152 *) <raw_text>             ::= (* any sequence of characters not containing ``` *)
+(* $153 *) <template_string>      ::= '"""' <template_body> '"""'
+(* $154 *) <template_body>        ::= <template_part>*
+(* $155 *) <template_part>        ::= <template_literal_part> | <template_interpolation>
+(* $156 *) <template_literal_part>::= (* any chars not containing ${ or """ *)
+(* $157 *) <template_interpolation> ::= "${" <value_expr> "}"
+(* $158 *) <multiline_string>     ::= '"""' <raw_string_body> '"""'
+(* $159 *) <raw_string_body>      ::= (* any sequence not containing """ *)
+(* $160 *) <verbatim_string>      ::= "`" <raw_verbatim_body> "`"
+
+
+(* ============================================================================ *)
+(*  SECTION 4 — NEGATION AND CONSTRAINT STATEMENTS                              *)
+(*  Rules $161 – $230                                                            *)
+(* ============================================================================ *)
+
+(* $161 *) <negation_stmt>        ::= <bang_op> <negation_target_list> <semicolon>
+(* $162 *) <bang_op>              ::= "!"
+(* $163 *) <negation_target_list> ::= <negation_target> <negation_tail>*
+(* $164 *) <negation_tail>        ::= <comma> <negation_target>
+(* $165 *) <negation_target>      ::= <property_key>
+(* $166 *)                         | <value_expr>
+(* $167 *)                         | <negation_group>
+(* $168 *) <negation_group>       ::= <lbracket> <negation_target_list> <rbracket>
+(* $169 *) <never_stmt>           ::= "never" <colon> <negation_target_list> <semicolon>
+(* $170 *) <avoid_stmt>           ::= "avoid" <colon> <negation_target_list> <semicolon>
+(* $171 *) <prohibit_stmt>        ::= "prohibit" <colon> <negation_target_list> <semicolon>
+(* $172 *) <ban_stmt>             ::= "ban" <colon> <negation_target_list> <semicolon>
+(* $173 *) <exclude_stmt>         ::= "exclude" <colon> <negation_target_list> <semicolon>
+(* $174 *) <constraint_stmt>      ::= <guard_clause> <fat_arrow_op> <action_clause> <semicolon>
+(* $175 *) <fat_arrow_op>         ::= "=>"
+(* $176 *)                         | "\u21D2"                                    (* ⇒ U+21D2 *)
+(* $177 *) <guard_clause>         ::= <simple_guard> | <compound_guard>
+(* $178 *) <simple_guard>         ::= <condition_expr>
+(* $179 *) <compound_guard>       ::= <condition_expr> <and_op> <condition_expr> <and_tail>*
+(* $180 *) <and_tail>             ::= <and_op> <condition_expr>
+(* $181 *) <and_op>               ::= "&&"
+(* $182 *) <or_op>                ::= "||"
+(* $183 *) <not_op>               ::= "!" | "not"
+(* $184 *) <condition_expr>       ::= <simple_condition>
+(* $185 *)                         | <negated_condition>
+(* $186 *)                         | <parenthesized_condition>
+(* $187 *) <negated_condition>    ::= <not_op> <condition_expr>
+(* $188 *) <parenthesized_condition> ::= <lparen> <condition_expr> <rparen>
+(* $189 *) <simple_condition>     ::= <condition_lhs> <relational_op> <condition_rhs>
+(* $190 *) <condition_lhs>        ::= <property_key>
+(* $191 *)                         | <context_ref>
+(* $192 *)                         | <identifier_expr>
+(* $193 *)                         | <func_call_expr>
+(* $194 *) <condition_rhs>        ::= <value_expr>
+(* $195 *) <relational_op>        ::= <in_op>
+(* $196 *)                         | <not_in_op>
+(* $197 *)                         | <contains_op>
+(* $198 *)                         | <not_contains_op>
+(* $199 *)                         | <matches_op>
+(* $200 *)                         | <eq_op>
+(* $201 *)                         | <neq_op>
+(* $202 *)                         | <lt_op>
+(* $203 *)                         | <gt_op>
+(* $204 *)                         | <lte_op>
+(* $205 *)                         | <gte_op>
+(* $206 *)                         | <subset_op>
+(* $207 *)                         | <superset_op>
+(* $208 *)                         | <member_op>
+(* $209 *)                         | <not_member_op>
+(* $210 *) <in_op>                ::= "in"
+(* $211 *)                         | "\u2208"                                    (* ∈ U+2208 *)
+(* $212 *) <not_in_op>            ::= "not-in" | "not in" | "notin"
+(* $213 *)                         | "\u2209"                                    (* ∉ U+2209 *)
+(* $214 *) <contains_op>          ::= "contains" | "has"
+(* $215 *)                         | "\u2283"                                    (* ⊃ U+2283 *)
+(* $216 *) <not_contains_op>      ::= "not-contains" | "lacks"
+(* $217 *)                         | "\u2285"                                    (* ⊅ U+2285 *)
+(* $218 *) <matches_op>           ::= "~" | "matches" | "like"
+(* $219 *) <eq_op>                ::= "==" | "is"
+(* $220 *) <neq_op>               ::= "!=" | "is-not" | "isnt"
+(* $221 *) <lt_op>                ::= "<"
+(* $222 *) <gt_op>                ::= ">"
+(* $223 *) <lte_op>               ::= "<=" | "\u2264"                           (* ≤ U+2264 *)
+(* $224 *) <gte_op>               ::= ">=" | "\u2265"                           (* ≥ U+2265 *)
+(* $225 *) <subset_op>            ::= "\u2282" | "subset"                       (* ⊂ U+2282 *)
+(* $226 *) <superset_op>          ::= "\u2283" | "superset"                     (* ⊃ U+2283 *)
+(* $227 *) <member_op>            ::= "\u2208" | "member"                       (* ∈ U+2208 *)
+(* $228 *) <not_member_op>        ::= "\u2209" | "nonmember"                    (* ∉ U+2209 *)
+(* $229 *) <action_clause>        ::= <action_body>
+(* $230 *) <action_body>          ::= <value_expr> | <agent_ref_inline> | <inline_block>
+
+
+(* ============================================================================ *)
+(*  SECTION 5 — FOCUS AND CONTEXT STATEMENTS                                    *)
+(*  Rules $231 – $270                                                            *)
+(* ============================================================================ *)
+
+(* $231 *) <focus_stmt>           ::= "focus" <colon> <focus_list> <modifier_suffix>? <semicolon>
+(* $232 *) <focus_list>           ::= <lbracket> <focus_item_list> <rbracket>
+(* $233 *) <focus_item_list>      ::= <focus_item> <focus_item_tail>*
+(* $234 *) <focus_item_tail>      ::= <comma> <focus_item>
+(* $235 *) <focus_item>           ::= <identifier>                               (* [AR]  *)
+(* $236 *) <context_stmt>         ::= "context" <colon> <context_value> <semicolon>
+(* $237 *) <context_value>        ::= <context_ref>
+(* $238 *)                         | <kv_map>
+(* $239 *)                         | <value_expr>
+(* $240 *) <schema_ref_stmt>      ::= "schema" <colon> <schema_ref_value> <semicolon>
+(* $241 *) <schema_ref_value>     ::= <hash_schema_ref> | <identifier>
+(* $242 *) <hash_schema_ref>      ::= "#" <identifier>                           (* [AR]  *)
+(* $243 *) <target_stmt>          ::= "target" <colon> <target_list> <semicolon>
+(* $244 *) <target_list>          ::= <target_name> <target_list_tail>*
+(* $245 *) <target_list_tail>     ::= <comma> <target_name>
+(* $246 *) <target_name>          ::= "claude" | "claude-xml"
+(* $247 *)                         | "gpt" | "gpt-json" | "openai"
+(* $248 *)                         | "gemini" | "gemini-md" | "google"
+(* $249 *)                         | "deepseek"
+(* $250 *)                         | "qwen"
+(* $251 *)                         | "binary" | "msgpack"
+(* $252 *)                         | "all"
+(* $253 *)                         | <identifier>
+(* $254 *) <pipeline_stmt>        ::= "task" <colon> <pipeline_expr> <semicolon>
+(* $255 *) <pipeline_expr_stmt>   ::= <primary_expr> <arrow_op> <pipeline_expr>
+(* $256 *) <pipeline_step>        ::= <primary_expr>
+(* $257 *) <pipeline_source>      ::= <primary_expr>
+(* $258 *) <pipeline_sink>        ::= <primary_expr>
+(* $259 *) <pipeline_transform>   ::= <func_call_expr>
+(* $260 *) <multi_pipeline>       ::= <pipeline_step> <arrow_op> <pipeline_step> <pipeline_rest>*
+(* $261 *) <pipeline_rest>        ::= <arrow_op> <pipeline_step>
+(* $262 *) <forked_pipeline>      ::= <pipeline_source> <fork_op> <pipeline_sink_list>
+(* $263 *) <fork_op>              ::= "|>"
+(* $264 *) <pipeline_sink_list>   ::= <pipeline_sink> <pipe_sink_tail>*
+(* $265 *) <pipe_sink_tail>       ::= <comma> <pipeline_sink>
+(* $266 *) <conditional_pipeline> ::= <guard_clause> "?" <pipeline_expr> ":" <pipeline_expr>
+(* $267 *) <parallel_pipeline>    ::= <pipeline_expr> "&" <pipeline_expr>        (* [LL2] *)
+(* $268 *) <named_pipeline>       ::= <identifier> "=" <pipeline_expr>
+(* $269 *) <pipeline_ref>         ::= "$pipeline" "." <identifier>
+(* $270 *) <pipeline_annotation>  ::= <pipeline_expr> "@" <identifier>
+
+
+(* ============================================================================ *)
+(*  SECTION 6 — MODIFIER SYSTEM                                                 *)
+(*  Rules $271 – $310                                                            *)
+(* ============================================================================ *)
+
+(* $271 *) <modifier_suffix>      ::= <bracket_modifier> | <inline_modifier>
+(* $272 *) <bracket_modifier>     ::= <lbracket> <modifier_list> <rbracket>
+(* $273 *) <inline_modifier>      ::= <modifier_keyword>
+(* $274 *) <modifier_list>        ::= <modifier_item> <modifier_tail>*
+(* $275 *) <modifier_tail>        ::= <comma> <modifier_item>
+(* $276 *) <modifier_item>        ::= <modifier_keyword> | <modifier_with_arg>
+(* $277 *) <modifier_keyword>     ::= "critical"
+(* $278 *)                         | "\u26A1"                                    (* ⚡ U+26A1 *)
+(* $279 *)                         | "warning"
+(* $280 *)                         | "\u26A0"                                    (* ⚠ U+26A0 *)
+(* $281 *)                         | "required"
+(* $282 *)                         | "\u2205"                                    (* ∅ U+2205 *)
+(* $283 *)                         | "optional"
+(* $284 *)                         | "readonly"
+(* $285 *)                         | "deprecated"
+(* $286 *)                         | "experimental"
+(* $287 *)                         | "internal"
+(* $288 *)                         | "public"
+(* $289 *)                         | "private"
+(* $290 *)                         | "abstract"
+(* $291 *)                         | "final"
+(* $292 *)                         | "override"
+(* $293 *)                         | "sealed"
+(* $294 *) <modifier_with_arg>    ::= <modifier_keyword> "(" <modifier_arg> ")"
+(* $295 *) <modifier_arg>         ::= <value_expr>
+(* $296 *) <modifier_priority>    ::= "priority" "(" <integer_literal> ")"
+(* $297 *) <modifier_weight>      ::= "weight" "(" <number_literal> ")"
+(* $298 *) <modifier_version>     ::= "version" "(" <version_literal> ")"
+(* $299 *) <modifier_since>       ::= "since" "(" <version_literal> ")"
+(* $300 *) <modifier_until>       ::= "until" "(" <version_literal> ")"
+(* $301 *) <modifier_model>       ::= "for" "(" <target_name> ")"
+(* $302 *) <modifier_if>          ::= "if" "(" <condition_expr> ")"
+(* $303 *) <modifier_unless>      ::= "unless" "(" <condition_expr> ")"
+(* $304 *) <modifier_max>         ::= "max" "(" <number_literal> ")"
+(* $305 *) <modifier_min>         ::= "min" "(" <number_literal> ")"
+(* $306 *) <modifier_default>     ::= "default" "(" <value_expr> ")"
+(* $307 *) <modifier_fallback>    ::= "fallback" "(" <value_expr> ")"
+(* $308 *) <modifier_alias>       ::= "as" "(" <identifier> ")"
+(* $309 *) <modifier_doc>         ::= "doc" "(" <string_literal> ")"
+(* $310 *) <modifier_tag>         ::= "tag" "(" <identifier_list> ")"
+
+
+(* ============================================================================ *)
+(*  SECTION 7 — SCHEMA DEFINITIONS                                              *)
+(*  Rules $311 – $390                                                            *)
+(* ============================================================================ *)
+
+(* $311 *) <schema_def>           ::= <hash_schema_keyword> <schema_name> <schema_body_block>
+(* $312 *) <hash_schema_keyword>  ::= "#schema"
+(* $313 *) <schema_name>          ::= <identifier>                               (* [AR]  *)
+(* $314 *) <schema_body_block>    ::= <lbrace> <schema_body> <rbrace>
+(* $315 *) <schema_body>          ::= <schema_item>*
+(* $316 *) <schema_item>          ::= <field_def>
+(* $317 *)                         | <schema_constraint>
+(* $318 *)                         | <schema_index>
+(* $319 *)                         | <schema_method>
+(* $320 *)                         | <comment_line>
+(* $321 *)                         | <blank_line>
+(* $322 *) <field_def>            ::= <field_name> <colon> <type_expr> <field_modifier>? <semicolon>?
+(* $323 *) <field_name>           ::= <identifier>                               (* [AR]  *)
+(* $324 *) <field_modifier>       ::= <field_required> | <field_optional> | <modifier_suffix>
+(* $325 *) <field_required>       ::= "required" | "\u2205"
+(* $326 *) <field_optional>       ::= "optional" | "?"
+(* $327 *) <field_default>        ::= "=" <value_expr>
+(* $328 *) <field_description>    ::= <string_literal>
+(* $329 *) <schema_constraint>    ::= "constraint" <colon> <condition_expr> <semicolon>
+(* $330 *) <schema_index>         ::= "index" <colon> <lbracket> <index_field_list> <rbracket> <semicolon>
+(* $331 *) <index_field_list>     ::= <field_name> <index_field_tail>*
+(* $332 *) <index_field_tail>     ::= <comma> <field_name>
+(* $333 *) <schema_method>        ::= "method" <identifier> <lparen> <param_list>? <rparen> <colon> <type_expr> <semicolon>
+(* $334 *) <param_list>           ::= <param_def> <param_tail>*
+(* $335 *) <param_tail>           ::= <comma> <param_def>
+(* $336 *) <param_def>            ::= <param_name> <colon> <type_expr> <param_default>?
+(* $337 *) <param_name>           ::= <identifier>
+(* $338 *) <param_default>        ::= "=" <value_expr>
+(* $339 *) <schema_extends>       ::= "extends" <schema_name>
+(* $340 *) <schema_mixin>         ::= "mixin" <schema_name>
+(* $341 *) <extended_schema>      ::= <hash_schema_keyword> <schema_name> <schema_extends>? <schema_body_block>
+(* $342 *) <inline_schema>        ::= "#" <lbrace> <schema_body> <rbrace>
+(* $343 *) <anonymous_schema>     ::= <inline_schema>
+(* $344 *) <schema_ref>           ::= "#" <schema_name>
+(* $345 *) <schema_type>          ::= <schema_ref> | <anonymous_schema>
+(* $346 *) <array_schema>         ::= <schema_name> "[]"
+(* $347 *) <map_schema>           ::= "map" "<" <type_expr> "," <type_expr> ">"
+(* $348 *) <tuple_schema>         ::= "(" <type_expr_list> ")"
+(* $349 *) <type_expr_list>       ::= <type_expr> <type_expr_tail>*
+(* $350 *) <type_expr_tail>       ::= <comma> <type_expr>
+(* $351 *) <union_schema>         ::= <type_expr> "|" <type_expr>
+(* $352 *) <intersection_schema>  ::= <type_expr> "&" <type_expr>
+(* $353 *) <nullable_type>        ::= <type_expr> "?"
+(* $354 *) <generic_schema>       ::= <schema_name> "<" <type_param_list> ">"
+(* $355 *) <type_param_list>      ::= <type_expr> <type_param_tail>*
+(* $356 *) <type_param_tail>      ::= <comma> <type_expr>
+(* $357 *) <discriminated_union>  ::= <schema_name> "|" <schema_name> <du_tail>*
+(* $358 *) <du_tail>              ::= "|" <schema_name>
+(* $359 *) <schema_literal>       ::= <lbrace> <kv_pair_list>? <rbrace>
+(* $360 *) <schema_validation>    ::= "validate" <lparen> <schema_ref> <comma> <value_expr> <rparen>
+(* $361 *) <schema_transform>     ::= "transform" <lparen> <schema_ref> <comma> <func_call_expr> <rparen>
+(* $362 *) <output_schema>        ::= "output" <colon> <schema_ref_value> <semicolon>
+(* $363 *) <input_schema>         ::= "input" <colon> <schema_ref_value> <semicolon>
+(* $364 *) <return_schema>        ::= "returns" <colon> <schema_ref_value> <semicolon>
+(* $365 *) <error_schema>         ::= "errors" <colon> <schema_ref_value> <semicolon>
+(* $366 *) <schema_version>       ::= "v" <digit>+
+(* $367 *) <versioned_schema>     ::= <schema_ref> "@" <schema_version>
+(* $368 *) <schema_registry>      ::= "registry" <colon> <string_literal> <semicolon>
+(* $369 *) <schema_namespace>     ::= "namespace" <identifier>
+(* $370 *) <namespaced_schema>    ::= <schema_namespace> <dot> <schema_name>
+(* $371 *) <schema_import>        ::= "import" <schema_ref> "from" <string_literal>
+(* $372 *) <schema_export>        ::= "export" <schema_ref>
+(* $373 *) <partial_schema>       ::= "partial" "<" <schema_name> ">"
+(* $374 *) <required_schema>      ::= "required" "<" <schema_name> ">"
+(* $375 *) <pick_schema>          ::= "pick" "<" <schema_name> "," <field_name_list> ">"
+(* $376 *) <omit_schema>          ::= "omit" "<" <schema_name> "," <field_name_list> ">"
+(* $377 *) <field_name_list>      ::= <field_name> <field_name_tail>*
+(* $378 *) <field_name_tail>      ::= <comma> <field_name>
+(* $379 *) <record_schema>        ::= "record" "<" <type_expr> "," <type_expr> ">"
+(* $380 *) <readonly_schema>      ::= "readonly" "<" <schema_name> ">"
+(* $381 *) <deep_readonly>        ::= "deepreadonly" "<" <schema_name> ">"
+(* $382 *) <mutable_schema>       ::= "mutable" "<" <schema_name> ">"
+(* $383 *) <schema_doc>           ::= "/**" <raw_text> "*/"
+(* $384 *) <schema_example>       ::= "example" <colon> <schema_literal> <semicolon>
+(* $385 *) <schema_deprecated>    ::= "deprecated" <colon> <string_literal>? <semicolon>
+(* $386 *) <schema_alias>         ::= "alias" <schema_name> "=" <type_expr> <semicolon>
+(* $387 *) <recursive_schema>     ::= <schema_name>                              (* forward ref *)
+(* $388 *) <schema_body_empty>    ::= <lbrace> <rbrace>
+(* $389 *) <empty_schema>         ::= <hash_schema_keyword> <schema_name> <schema_body_empty>
+(* $390 *) <schema_comment>       ::= <comment_line>
+
+
+(* ============================================================================ *)
+(*  SECTION 8 — TYPE SYSTEM                                                     *)
+(*  Rules $391 – $480                                                            *)
+(* ============================================================================ *)
+
+(* $391 *) <type_expr>            ::= <primitive_type>
+(* $392 *)                         | <composite_type>
+(* $393 *)                         | <enum_type>
+(* $394 *)                         | <schema_type>
+(* $395 *)                         | <nullable_type>
+(* $396 *)                         | <union_type>
+(* $397 *)                         | <intersection_type>
+(* $398 *)                         | <array_type>
+(* $399 *)                         | <map_type>
+(* $400 *)                         | <tuple_type>
+(* $401 *)                         | <function_type>
+(* $402 *)                         | <generic_type>
+(* $403 *)                         | <type_alias_ref>
+(* $404 *) <primitive_type>       ::= <str_type>
+(* $405 *)                         | <int_type>
+(* $406 *)                         | <float_type>
+(* $407 *)                         | <bool_type>
+(* $408 *)                         | <bytes_type>
+(* $409 *)                         | <any_type>
+(* $410 *)                         | <void_type>
+(* $411 *)                         | <never_type>
+(* $412 *)                         | <unknown_type>
+(* $413 *) <str_type>             ::= "str" | "string" | "text"
+(* $414 *) <int_type>             ::= "int" | "integer" | "number"
+(* $415 *) <float_type>           ::= "float" | "decimal" | "double"
+(* $416 *) <bool_type>            ::= "bool" | "boolean" | "flag"
+(* $417 *) <bytes_type>           ::= "bytes" | "binary" | "blob"
+(* $418 *) <any_type>             ::= "any" | "mixed"
+(* $419 *) <void_type>            ::= "void"
+(* $420 *) <never_type>           ::= "never"
+(* $421 *) <unknown_type>         ::= "unknown"
+(* $422 *) <composite_type>       ::= <array_type>
+(* $423 *)                         | <map_type>
+(* $424 *)                         | <tuple_type>
+(* $425 *)                         | <set_type>
+(* $426 *) <array_type>           ::= <type_expr> "[" "]"
+(* $427 *) <array_type_sized>     ::= <type_expr> "[" <integer_literal> "]"
+(* $428 *) <map_type>             ::= "map" "<" <key_type> <comma> <value_type> ">"
+(* $429 *) <key_type>             ::= <type_expr>
+(* $430 *) <value_type>           ::= <type_expr>
+(* $431 *) <tuple_type>           ::= "[" <type_expr_list> "]"
+(* $432 *) <set_type>             ::= "set" "<" <type_expr> ">"
+(* $433 *) <union_type>           ::= <type_expr> "|" <type_expr> <union_tail>*
+(* $434 *) <union_tail>           ::= "|" <type_expr>
+(* $435 *) <intersection_type>    ::= <type_expr> "&" <type_expr> <intersection_tail>*
+(* $436 *) <intersection_tail>    ::= "&" <type_expr>
+(* $437 *) <function_type>        ::= "(" <param_type_list>? ")" "->" <type_expr>
+(* $438 *) <param_type_list>      ::= <type_expr> <param_type_tail>*
+(* $439 *) <param_type_tail>      ::= <comma> <type_expr>
+(* $440 *) <generic_type>         ::= <identifier> "<" <type_param_list> ">"
+(* $441 *) <type_alias_ref>       ::= <identifier>
+(* $442 *) <enum_type>            ::= "enum" "[" <enum_body> "]"
+(* $443 *) <enum_body>            ::= <enum_member> <enum_tail>*
+(* $444 *) <enum_tail>            ::= "|" <enum_member>
+(* $445 *) <enum_member>          ::= <enum_identifier>
+(* $446 *)                         | <enum_string>
+(* $447 *)                         | <enum_integer>
+(* $448 *)                         | <enum_float>
+(* $449 *) <enum_identifier>      ::= <identifier>                               (* [AR]  *)
+(* $450 *) <enum_string>          ::= <string_literal>
+(* $451 *) <enum_integer>         ::= <integer_literal>
+(* $452 *) <enum_float>           ::= <float_literal>
+(* $453 *) <enum_with_alias>      ::= <enum_identifier> "as" <string_literal>
+(* $454 *) <enum_with_value>      ::= <enum_identifier> "=" <literal>
+(* $455 *) <open_enum>            ::= "enum" "[" <enum_body> "|" "..." "]"
+(* $456 *) <closed_enum>          ::= "enum" "[" <enum_body> "]"
+(* $457 *) <str_constraint>       ::= "str" "(" <string_constraints>? ")"
+(* $458 *) <string_constraints>   ::= <string_constraint> <string_constraint_tail>*
+(* $459 *) <string_constraint_tail> ::= <comma> <string_constraint>
+(* $460 *) <string_constraint>    ::= <min_len_constraint>
+(* $461 *)                         | <max_len_constraint>
+(* $462 *)                         | <pattern_constraint>
+(* $463 *)                         | <format_constraint>
+(* $464 *) <min_len_constraint>   ::= "minlen" "=" <integer_literal>
+(* $465 *) <max_len_constraint>   ::= "maxlen" "=" <integer_literal>
+(* $466 *) <pattern_constraint>   ::= "pattern" "=" <string_literal>
+(* $467 *) <format_constraint>    ::= "format" "=" <format_name>
+(* $468 *) <format_name>          ::= "email" | "url" | "uuid" | "date" | "datetime" | "iso8601" | <identifier>
+(* $469 *) <int_constraint>       ::= "int" "(" <int_constraints>? ")"
+(* $470 *) <int_constraints>      ::= <int_constraint_item> <int_constraint_tail>*
+(* $471 *) <int_constraint_tail>  ::= <comma> <int_constraint_item>
+(* $472 *) <int_constraint_item>  ::= <min_constraint> | <max_constraint> | <multiple_of>
+(* $473 *) <min_constraint>       ::= "min" "=" <number_literal>
+(* $474 *) <max_constraint>       ::= "max" "=" <number_literal>
+(* $475 *) <multiple_of>          ::= "multipleOf" "=" <integer_literal>
+(* $476 *) <literal_type>         ::= <string_literal>
+(* $477 *)                         | <integer_literal>
+(* $478 *)                         | <float_literal>
+(* $479 *)                         | <boolean_literal>
+(* $480 *) <type_guard>           ::= <identifier> "is" <type_expr>
+
+
+(* ============================================================================ *)
+(*  SECTION 9 — SHARED DEFINITIONS                                              *)
+(*  Rules $481 – $540                                                            *)
+(* ============================================================================ *)
+
+(* $481 *) <shared_def>           ::= <shared_keyword> <shared_name> <shared_body_block>
+(* $482 *) <shared_keyword>       ::= "!shared"
+(* $483 *)                         | "shared"
+(* $484 *)                         | "#shared"
+(* $485 *) <shared_name>          ::= <identifier>                               (* [AR]  *)
+(* $486 *) <shared_body_block>    ::= <lbrace> <shared_body> <rbrace>
+(* $487 *) <shared_body>          ::= <shared_item>*
+(* $488 *) <shared_item>          ::= <shared_field>
+(* $489 *)                         | <comment_line>
+(* $490 *)                         | <blank_line>
+(* $491 *) <shared_field>         ::= <field_name> <colon> <value_expr> <semicolon>?
+(* $492 *) <shared_access>        ::= "$" <shared_name>
+(* $493 *) <shared_access_field>  ::= "$" <shared_name> <dot> <field_name>
+(* $494 *) <shared_spread>        ::= "..." <shared_access>
+(* $495 *) <shared_override>      ::= <shared_access> "with" <lbrace> <shared_body> <rbrace>
+(* $496 *) <context_block>        ::= "!shared" "ctx" <shared_body_block>
+(* $497 *) <ctx_shorthand>        ::= "ctx" <lbrace> <shared_body> <rbrace>
+(* $498 *) <global_context>       ::= <context_block>
+(* $499 *) <local_context>        ::= <context_stmt>
+(* $500 *) <merged_context>       ::= <global_context> <local_context>
+(* $501 *) <context_field_access> ::= "$ctx" <dot> <field_name>
+(* $502 *) <ctx_brand>            ::= "$ctx.brand"
+(* $503 *) <ctx_lang>             ::= "$ctx.lang"
+(* $504 *) <ctx_stack>            ::= "$ctx.stack"
+(* $505 *) <ctx_version>          ::= "$ctx.version"
+(* $506 *) <ctx_target>           ::= "$ctx.target"
+(* $507 *) <env_ref>              ::= "$env" <dot> <identifier>
+(* $508 *) <const_def>            ::= "#const" <identifier> "=" <value_expr> <semicolon>
+(* $509 *) <const_ref>            ::= "#" <identifier>
+(* $510 *) <var_def>              ::= "#var" <identifier> <colon> <type_expr> "=" <value_expr> <semicolon>
+(* $511 *) <var_ref>              ::= "$" <identifier>
+(* $512 *) <let_binding>          ::= "let" <identifier> "=" <value_expr> <semicolon>
+(* $513 *) <let_ref>              ::= <identifier>
+(* $514 *) <computed_field>       ::= <field_name> "(" <param_list>? ")" <colon> <value_expr>
+(* $515 *) <lazy_field>           ::= "lazy" <field_name> <colon> <value_expr>
+(* $516 *) <memoized_field>       ::= "memo" <field_name> <colon> <value_expr>
+(* $517 *) <derived_field>        ::= <field_name> ":=" <value_expr>
+(* $518 *) <template_field>       ::= <field_name> "<" <type_param_list> ">" <colon> <value_expr>
+(* $519 *) <shared_ref_list>      ::= <shared_access> <shared_ref_tail>*
+(* $520 *) <shared_ref_tail>      ::= <comma> <shared_access>
+(* $521 *) <namespace_def>        ::= "namespace" <identifier> <lbrace> <statement_list> <rbrace>
+(* $522 *) <namespace_ref>        ::= <identifier> "::" <identifier>
+(* $523 *) <module_def>           ::= "module" <identifier> <lbrace> <statement_list> <rbrace>
+(* $524 *) <module_ref>           ::= <identifier>
+(* $525 *) <export_stmt>          ::= "export" <identifier_list> <semicolon>
+(* $526 *) <export_default>       ::= "export" "default" <value_expr> <semicolon>
+(* $527 *) <re_export>            ::= "export" "*" "from" <string_literal> <semicolon>
+(* $528 *) <named_export>         ::= "export" <lbrace> <export_list> <rbrace> <semicolon>
+(* $529 *) <export_list>          ::= <export_item> <export_tail>*
+(* $530 *) <export_tail>          ::= <comma> <export_item>
+(* $531 *) <export_item>          ::= <identifier> | <identifier> "as" <identifier>
+(* $532 *) <import_stmt>          ::= "import" <import_spec> "from" <string_literal> <semicolon>
+(* $533 *) <import_spec>          ::= <named_imports> | <default_import> | <namespace_import>
+(* $534 *) <named_imports>        ::= <lbrace> <import_list> <rbrace>
+(* $535 *) <import_list>          ::= <import_item> <import_tail>*
+(* $536 *) <import_tail>          ::= <comma> <import_item>
+(* $537 *) <import_item>          ::= <identifier> | <identifier> "as" <identifier>
+(* $538 *) <default_import>       ::= <identifier>
+(* $539 *) <namespace_import>     ::= "*" "as" <identifier>
+(* $540 *) <side_effect_import>   ::= "import" <string_literal> <semicolon>
+
+
+(* ============================================================================ *)
+(*  SECTION 10 — DIRECTIVE STATEMENTS                                           *)
+(*  Rules $541 – $600                                                            *)
+(* ============================================================================ *)
+
+(* $541 *) <directive_stmt>       ::= <at_directive> | <hash_directive> | <bang_directive>
+(* $542 *) <at_directive>         ::= "@" <directive_name> <directive_args>? <directive_body>?
+(* $543 *) <hash_directive>       ::= "#" <directive_name> <directive_args>? <semicolon>
+(* $544 *) <bang_directive>       ::= "!" <directive_name> <directive_args>? <semicolon>
+(* $545 *) <directive_name>       ::= <identifier>
+(* $546 *) <directive_args>       ::= <lparen> <directive_arg_list>? <rparen>
+(* $547 *) <directive_arg_list>   ::= <directive_arg> <directive_arg_tail>*
+(* $548 *) <directive_arg_tail>   ::= <comma> <directive_arg>
+(* $549 *) <directive_arg>        ::= <value_expr>
+(* $550 *) <directive_body>       ::= <agent_body_block>
+(* $551 *) <psdl_directive>       ::= "@psdl" <version_literal>
+(* $552 *) <model_directive>      ::= "@model" <target_name>
+(* $553 *) <profile_directive>    ::= "@profile" <profile_name>
+(* $554 *) <profile_name>         ::= "default" | "production" | "experimental" | <identifier>
+(* $555 *) <debug_directive>      ::= "@debug" <boolean_literal>?
+(* $556 *) <trace_directive>      ::= "@trace" <boolean_literal>?
+(* $557 *) <lint_directive>       ::= "@lint" <lint_rule>
+(* $558 *) <lint_rule>            ::= "off" | "warn" | "error" | <identifier>
+(* $559 *) <format_directive>     ::= "@format" <format_name>
+(* $560 *) <encoding_directive>   ::= "@encoding" <encoding_name>
+(* $561 *) <encoding_name>        ::= "utf8" | "ascii" | "base64" | "base256" | <identifier>
+(* $562 *) <compress_directive>   ::= "@compress" <compress_level>
+(* $563 *) <compress_level>       ::= "none" | "lz77" | "gzip" | "brotli" | <identifier>
+(* $564 *) <target_directive>     ::= "@target" <target_name>
+(* $565 *) <tier_directive>       ::= "@tier" <tier_name>
+(* $566 *) <tier_name>            ::= "free" | "pro" | "enterprise" | <identifier>
+(* $567 *) <anchor_directive>     ::= "@anchor" <identifier_list>               (* explicit anchor hint *)
+(* $568 *) <no_anchor_directive>  ::= "@noanchor" <identifier_list>             (* explicit anchor exclude *)
+(* $569 *) <shake_directive>      ::= "@shake" <boolean_literal>
+(* $570 *) <mangle_directive>     ::= "@mangle" <boolean_literal>               (* [OPT] Pro/Enterprise *)
+(* $571 *) <fold_directive>       ::= "@fold" <boolean_literal>
+(* $572 *) <hydrate_directive>    ::= "@hydrate" <hydrate_format>               (* [OPT] Pro/Enterprise *)
+(* $573 *) <hydrate_format>       ::= "msgpack" | "cbor" | "json" | "binary"
+(* $574 *) <tes_directive>        ::= "@tes" <number_literal>                   (* minimum TES threshold *)
+(* $575 *) <spi_directive>        ::= "@spi" <number_literal>                   (* minimum SPI threshold *)
+(* $576 *) <ratio_directive>      ::= "@ratio" <number_literal>                 (* minimum compression ratio *)
+(* $577 *) <strict_directive>     ::= "@strict"                                  (* enable strict mode *)
+(* $578 *) <permissive_directive> ::= "@permissive"                              (* disable strict mode *)
+(* $579 *) <compat_directive>     ::= "@compat" <version_literal>
+(* $580 *) <deprecated_directive> ::= "@deprecated" <string_literal>?
+(* $581 *) <experimental_directive>::= "@experimental"
+(* $582 *) <feature_directive>    ::= "@feature" <feature_flag>
+(* $583 *) <feature_flag>         ::= <identifier>
+(* $584 *) <no_feature_directive> ::= "@nofeature" <feature_flag>
+(* $585 *) <benchmark_directive>  ::= "@benchmark"
+(* $586 *) <validate_directive>   ::= "@validate"
+(* $587 *) <explain_directive>    ::= "@explain"
+(* $588 *) <dry_run_directive>    ::= "@dryrun"
+(* $589 *) <emit_directive>       ::= "@emit" <target_name>
+(* $590 *) <include_directive>    ::= "@include" <string_literal>
+(* $591 *) <exclude_directive>    ::= "@exclude" <identifier_list>
+(* $592 *) <require_directive>    ::= "@require" <identifier_list>
+(* $593 *) <disallow_directive>   ::= "@disallow" <identifier_list>
+(* $594 *) <inherit_directive>    ::= "@inherit" <identifier_list>
+(* $595 *) <reset_directive>      ::= "@reset" <identifier_list>?
+(* $596 *) <freeze_directive>     ::= "@freeze"
+(* $597 *) <thaw_directive>       ::= "@thaw"
+(* $598 *) <snapshot_directive>   ::= "@snapshot" <string_literal>
+(* $599 *) <restore_directive>    ::= "@restore" <string_literal>
+(* $600 *) <custom_directive>     ::= "@" <identifier> <directive_args>?
+
+
+(* ============================================================================ *)
+(*  SECTION 11 — FUNCTION CALLS                                                 *)
+(*  Rules $601 – $660                                                            *)
+(* ============================================================================ *)
+
+(* $601 *) <func_call_expr>       ::= <func_name> <lparen> <func_arg_list>? <rparen>
+(* $602 *) <func_name>            ::= <qualified_identifier> | <identifier>     (* [AR]  *)
+(* $603 *) <func_arg_list>        ::= <func_arg> <func_arg_tail>*
+(* $604 *) <func_arg_tail>        ::= <comma> <func_arg>
+(* $605 *) <func_arg>             ::= <positional_arg> | <named_arg> | <spread_arg>
+(* $606 *) <positional_arg>       ::= <value_expr>
+(* $607 *) <named_arg>            ::= <identifier> "=" <value_expr>
+(* $608 *) <spread_arg>           ::= "..." <value_expr>
+(* $609 *) <method_call>          ::= <primary_expr> <dot> <func_call_expr>
+(* $610 *) <chained_call>         ::= <method_call> <dot> <func_call_expr>
+(* $611 *) <nullsafe_call>        ::= <primary_expr> "?." <func_call_expr>
+(* $612 *) <optional_call>        ::= <primary_expr> "?(" <func_arg_list>? ")"
+(* $613 *) <hash_passwords>       ::= "hash_passwords" <lparen> <hash_algorithm> <rparen>
+(* $614 *) <hash_algorithm>       ::= "bcrypt" | "argon2" | "pbkdf2" | "scrypt" | <identifier>
+(* $615 *) <validate_emails>      ::= "validate_emails" <lparen> <rparen>?
+(* $616 *) <jwt_expiration>       ::= "jwt_expiration" <colon> <duration_literal>
+(* $617 *) <rate_limit>           ::= "rate_limit" <lparen> <rate_arg> <rparen>
+(* $618 *) <rate_arg>             ::= <integer_literal> "/" <time_unit>
+(* $619 *) <time_unit>            ::= "s" | "m" | "h" | "d" | "w"
+(* $620 *) <retry>                ::= "retry" <lparen> <integer_literal> <comma> <duration_literal> <rparen>
+(* $621 *) <timeout>              ::= "timeout" <lparen> <duration_literal> <rparen>
+(* $622 *) <cache>                ::= "cache" <lparen> <duration_literal> <rparen>
+(* $623 *) <log>                  ::= "log" <lparen> <log_level> <comma> <string_literal> <rparen>
+(* $624 *) <log_level>            ::= "debug" | "info" | "warn" | "error" | "fatal"
+(* $625 *) <emit>                 ::= "emit" <lparen> <string_literal> <comma> <value_expr> <rparen>
+(* $626 *) <qualify>              ::= "qualify" <lparen> <identifier> <rparen>
+(* $627 *) <score>                ::= "score" <lparen> <identifier_list> <rparen>
+(* $628 *) <rank>                 ::= "rank" <lparen> <identifier_list> <rparen>
+(* $629 *) <classify>             ::= "classify" <lparen> <identifier_list> <rparen>
+(* $630 *) <extract>              ::= "extract" <lparen> <schema_ref> <rparen>
+(* $631 *) <transform>            ::= "transform" <lparen> <value_expr> <rparen>
+(* $632 *) <filter>               ::= "filter" <lparen> <condition_expr> <rparen>
+(* $633 *) <map_fn>               ::= "map" <lparen> <func_call_expr> <rparen>
+(* $634 *) <reduce_fn>            ::= "reduce" <lparen> <func_call_expr> <comma> <value_expr> <rparen>
+(* $635 *) <sort_fn>              ::= "sort" <lparen> <sort_key>? <rparen>
+(* $636 *) <sort_key>             ::= <identifier> | <func_call_expr>
+(* $637 *) <group_fn>             ::= "group" <lparen> <identifier> <rparen>
+(* $638 *) <aggregate_fn>         ::= "aggregate" <lparen> <agg_op> <comma> <identifier> <rparen>
+(* $639 *) <agg_op>               ::= "sum" | "avg" | "min" | "max" | "count"
+(* $640 *) <format_fn>            ::= "format" <lparen> <string_literal> <rparen>
+(* $641 *) <parse_fn>             ::= "parse" <lparen> <type_expr> <rparen>
+(* $642 *) <serialize_fn>         ::= "serialize" <lparen> <format_name> <rparen>
+(* $643 *) <deserialize_fn>       ::= "deserialize" <lparen> <format_name> <rparen>
+(* $644 *) <encrypt_fn>           ::= "encrypt" <lparen> <cipher_name> <rparen>
+(* $645 *) <cipher_name>          ::= "aes256" | "rsa" | "chacha20" | <identifier>
+(* $646 *) <decrypt_fn>           ::= "decrypt" <lparen> <cipher_name> <rparen>
+(* $647 *) <hash_fn>              ::= "hash" <lparen> <hash_algorithm> <rparen>
+(* $648 *) <sign_fn>              ::= "sign" <lparen> <sign_algorithm> <rparen>
+(* $649 *) <sign_algorithm>       ::= "rs256" | "hs256" | "es256" | "ps256" | <identifier>
+(* $650 *) <verify_fn>            ::= "verify" <lparen> <value_expr> <rparen>
+(* $651 *) <sanitize_fn>          ::= "sanitize" <lparen> <sanitize_mode>? <rparen>
+(* $652 *) <sanitize_mode>        ::= "html" | "sql" | "shell" | "path" | <identifier>
+(* $653 *) <truncate_fn>          ::= "truncate" <lparen> <integer_literal> <rparen>
+(* $654 *) <pad_fn>               ::= "pad" <lparen> <integer_literal> <comma> <string_literal>? <rparen>
+(* $655 *) <split_fn>             ::= "split" <lparen> <string_literal> <rparen>
+(* $656 *) <join_fn>              ::= "join" <lparen> <string_literal> <rparen>
+(* $657 *) <trim_fn>              ::= "trim" <lparen> <rparen>?
+(* $658 *) <replace_fn>           ::= "replace" <lparen> <string_literal> <comma> <string_literal> <rparen>
+(* $659 *) <match_fn>             ::= "match" <lparen> <string_literal> <rparen>
+(* $660 *) <test_fn>              ::= "test" <lparen> <string_literal> <rparen>
+
+
+(* ============================================================================ *)
+(*  SECTION 12 — LIST AND ENUM EXPRESSIONS                                      *)
+(*  Rules $661 – $720                                                            *)
+(* ============================================================================ *)
+
+(* $661 *) <list_expr>            ::= <lbracket> <list_body>? <rbracket>        (* [LL2] *)
+(* $662 *) <list_body>            ::= <list_element> <list_tail>*
+(* $663 *) <list_tail>            ::= <comma> <list_element>
+(* $664 *) <list_element>         ::= <value_expr> | <spread_expr>
+(* $665 *) <typed_list>           ::= <lbracket> <list_body>? <rbracket> <colon> <type_expr>
+(* $666 *) <non_empty_list>       ::= <lbracket> <list_element> <list_tail>* <rbracket>
+(* $667 *) <single_element_list>  ::= <lbracket> <list_element> <rbracket>
+(* $668 *) <list_range>           ::= <lbracket> <value_expr> ".." <value_expr> <rbracket>
+(* $669 *) <list_comprehension>   ::= <lbracket> <value_expr> "for" <identifier> "in" <value_expr> <filter_clause>? <rbracket>
+(* $670 *) <filter_clause>        ::= "if" <condition_expr>
+(* $671 *) <list_concat>          ::= <list_expr> "+" <list_expr>
+(* $672 *) <list_diff>            ::= <list_expr> "-" <list_expr>
+(* $673 *) <list_intersect>       ::= <list_expr> "\u2229" <list_expr>          (* ∩ U+2229 *)
+(* $674 *) <list_union>           ::= <list_expr> "\u222A" <list_expr>          (* ∪ U+222A *)
+(* $675 *) <list_contains>        ::= <list_expr> "\u2283" <value_expr>         (* ⊃ U+2283 *)
+(* $676 *) <list_append>          ::= <list_expr> "::" <value_expr>
+(* $677 *) <list_prepend>         ::= <value_expr> "::" <list_expr>
+(* $678 *) <enum_expr>            ::= <lbracket> <enum_body> <rbracket>         (* [LL2] enum when contains | *)
+(* $679 *) <enum_member_list>     ::= <enum_member> <enum_member_tail>*
+(* $680 *) <enum_member_tail>     ::= "|" <enum_member>
+(* $681 *) <enum_set>             ::= <lbracket> <enum_body> <rbracket>
+(* $682 *) <singleton_enum>       ::= <lbracket> <enum_member> <rbracket>
+(* $683 *) <enum_ref>             ::= <identifier> "." <enum_member>
+(* $684 *) <enum_spread>          ::= "..." <enum_set>
+(* $685 *) <enum_check>           ::= <value_expr> <in_op> <enum_set>
+(* $686 *) <enum_negation>        ::= <value_expr> <not_in_op> <enum_set>
+(* $687 *) <enum_default>         ::= <enum_member> "??"  <enum_member>
+(* $688 *) <pair_list>            ::= <lbracket> <value_pair_list> <rbracket>
+(* $689 *) <tagged_list>          ::= <lbracket> <tagged_value_list> <rbracket>
+(* $690 *) <heterogeneous_list>   ::= <lbracket> <mixed_list_body> <rbracket>
+(* $691 *) <mixed_list_body>      ::= <mixed_list_item> <mixed_list_tail>*
+(* $692 *) <mixed_list_tail>      ::= <comma> <mixed_list_item>
+(* $693 *) <mixed_list_item>      ::= <value_expr> | <kv_pair>
+(* $694 *) <list_modifier>        ::= <list_expr> <modifier_suffix>
+(* $695 *) <priority_list>        ::= <list_expr> <modifier_keyword>            (* e.g., [...] ⚡ *)
+(* $696 *) <list_with_default>    ::= <list_expr> "??" <list_expr>
+(* $697 *) <checked_list>         ::= <list_expr> "!" <identifier>
+(* $698 *) <list_index>           ::= <list_expr> "[" <integer_literal> "]"
+(* $699 *) <list_slice>           ::= <list_expr> "[" <integer_literal>? ":" <integer_literal>? "]"
+(* $700 *) <list_head>            ::= "head" <lparen> <list_expr> <rparen>
+(* $701 *) <list_tail_fn>         ::= "tail" <lparen> <list_expr> <rparen>
+(* $702 *) <list_last>            ::= "last" <lparen> <list_expr> <rparen>
+(* $703 *) <list_init>            ::= "init" <lparen> <list_expr> <rparen>
+(* $704 *) <list_length>          ::= "len" <lparen> <list_expr> <rparen>
+(* $705 *) <list_empty_check>     ::= "empty" <lparen> <list_expr> <rparen>
+(* $706 *) <list_flatten>         ::= "flatten" <lparen> <list_expr> <rparen>
+(* $707 *) <list_unique>          ::= "unique" <lparen> <list_expr> <rparen>
+(* $708 *) <list_reverse>         ::= "reverse" <lparen> <list_expr> <rparen>
+(* $709 *) <list_zip>             ::= "zip" <lparen> <list_expr> <comma> <list_expr> <rparen>
+(* $710 *) <list_product>         ::= "product" <lparen> <list_expr> <comma> <list_expr> <rparen>
+(* $711 *) <security_list>        ::= <lbracket> <security_rule_list> <rbracket>
+(* $712 *) <security_rule_list>   ::= <security_rule> <security_rule_tail>*
+(* $713 *) <security_rule_tail>   ::= <comma> <security_rule>
+(* $714 *) <security_rule>        ::= <func_call_expr> | <identifier_expr>
+(* $715 *) <stack_list>           ::= <primary_expr> <plus_concat_tail>*
+(* $716 *) <plus_concat_tail>     ::= "+" <primary_expr>
+(* $717 *) <tool_list>            ::= <lbracket> <tool_item_list> <rbracket>
+(* $718 *) <tool_item_list>       ::= <tool_item> <tool_item_tail>*
+(* $719 *) <tool_item_tail>       ::= <comma> <tool_item>
+(* $720 *) <tool_item>            ::= <identifier_expr> | <func_call_expr>      (* [AR]  *)
+
+
+(* ============================================================================ *)
+(*  SECTION 13 — LITERAL VALUES                                                 *)
+(*  Rules $721 – $820                                                            *)
+(* ============================================================================ *)
+
+(* $721 *) <literal>              ::= <string_literal>
+(* $722 *)                         | <integer_literal>
+(* $723 *)                         | <float_literal>
+(* $724 *)                         | <boolean_literal>
+(* $725 *)                         | <duration_literal>
+(* $726 *)                         | <url_literal>
+(* $727 *)                         | <regex_literal>
+(* $728 *)                         | <null_literal>
+(* $729 *) <string_literal>       ::= <double_quoted_string>
+(* $730 *)                         | <single_quoted_string>
+(* $731 *)                         | <backtick_string>
+(* $732 *)                         | <triple_double_string>
+(* $733 *) <double_quoted_string> ::= '"' <dq_char>* '"'
+(* $734 *) <dq_char>              ::= <dq_escape> | <dq_unicode> | <dq_plain>
+(* $735 *) <dq_plain>             ::= (* any char except '"', '\', newline *)
+(* $736 *) <dq_escape>            ::= "\\" <escape_char>
+(* $737 *) <dq_unicode>           ::= "\\u" <hex_digit> <hex_digit> <hex_digit> <hex_digit>
+(* $738 *) <dq_unicode_ext>       ::= "\\U" <hex_digit> <hex_digit> <hex_digit> <hex_digit> <hex_digit> <hex_digit> <hex_digit> <hex_digit>
+(* $739 *) <single_quoted_string> ::= "'" <sq_char>* "'"
+(* $740 *) <sq_char>              ::= <sq_escape> | <sq_plain>
+(* $741 *) <sq_plain>             ::= (* any char except "'", '\' *)
+(* $742 *) <sq_escape>            ::= "\\" <escape_char>
+(* $743 *) <backtick_string>      ::= "`" <bt_char>* "`"
+(* $744 *) <bt_char>              ::= (* any char except '`' *)
+(* $745 *) <triple_double_string> ::= '"""' <triple_char>* '"""'
+(* $746 *) <triple_char>          ::= (* any char sequence not containing '"""' *)
+(* $747 *) <escape_char>          ::= '"' | "'" | "\\" | "/" | "n" | "r" | "t"
+(* $748 *)                         | "b" | "f" | "v" | "0" | "a"
+(* $749 *) <integer_literal>      ::= <decimal_integer>
+(* $750 *)                         | <hex_integer>
+(* $751 *)                         | <octal_integer>
+(* $752 *)                         | <binary_integer>
+(* $753 *)                         | <negative_integer>
+(* $754 *) <decimal_integer>      ::= <digit>+
+(* $755 *) <hex_integer>          ::= "0x" <hex_digit>+
+(* $756 *) <octal_integer>        ::= "0o" <octal_digit>+
+(* $757 *) <binary_integer>       ::= "0b" <binary_digit>+
+(* $758 *) <negative_integer>     ::= "-" <decimal_integer>
+(* $759 *) <float_literal>        ::= <decimal_float>
+(* $760 *)                         | <scientific_float>
+(* $761 *)                         | <negative_float>
+(* $762 *) <decimal_float>        ::= <digit>+ "." <digit>*
+(* $763 *)                         | "." <digit>+
+(* $764 *) <scientific_float>     ::= <decimal_float> <exponent>
+(* $765 *)                         | <decimal_integer> <exponent>
+(* $766 *) <exponent>             ::= ("e" | "E") ("+" | "-")? <digit>+
+(* $767 *) <negative_float>       ::= "-" <decimal_float>
+(* $768 *) <boolean_literal>      ::= <true_literal> | <false_literal>
+(* $769 *) <true_literal>         ::= "true" | "yes" | "on"
+(* $770 *) <false_literal>        ::= "false" | "no" | "off"
+(* $771 *) <duration_literal>     ::= <duration_value> <duration_unit>
+(* $772 *)                         | <compound_duration>
+(* $773 *) <duration_value>       ::= <integer_literal> | <float_literal>
+(* $774 *) <duration_unit>        ::= "ms" | "s" | "m" | "h" | "d" | "w" | "mo" | "y"
+(* $775 *) <compound_duration>    ::= <duration_literal> <duration_literal>+
+(* $776 *) <duration_24h>         ::= <decimal_integer> "h"
+(* $777 *) <duration_60s>         ::= <decimal_integer> "s"
+(* $778 *) <duration_60m>         ::= <decimal_integer> "m"
+(* $779 *) <duration_7d>          ::= <decimal_integer> "d"
+(* $780 *) <url_literal>          ::= <http_url> | <https_url> | <relative_url>
+(* $781 *) <http_url>             ::= "http://" <url_rest>
+(* $782 *) <https_url>            ::= "https://" <url_rest>
+(* $783 *) <url_rest>             ::= <url_host> <url_path>? <url_query>? <url_fragment>?
+(* $784 *) <url_host>             ::= <domain_name>
+(* $785 *) <domain_name>          ::= <domain_label> ("." <domain_label>)*
+(* $786 *) <domain_label>         ::= <letter_or_digit> (<letter_or_digit> | "-")* <letter_or_digit>?
+(* $787 *) <url_path>             ::= "/" <url_path_segment> ("/" <url_path_segment>)*
+(* $788 *) <url_path_segment>     ::= <url_char>*
+(* $789 *) <url_query>            ::= "?" <url_char>*
+(* $790 *) <url_fragment>         ::= "#" <url_char>*
+(* $791 *) <url_char>             ::= <letter_or_digit>
+(* $792 *)                         | "-" | "_" | "." | "~"
+(* $793 *)                         | "%" <hex_digit> <hex_digit>
+(* $794 *) <relative_url>         ::= "/" <url_path>?
+(* $795 *) <regex_literal>        ::= "/" <regex_body> "/" <regex_flags>?
+(* $796 *) <regex_body>           ::= (* any char sequence not containing unescaped "/" *)
+(* $797 *) <regex_flags>          ::= <regex_flag>+
+(* $798 *) <regex_flag>           ::= "g" | "i" | "m" | "s" | "u" | "y"
+(* $799 *) <email_literal>        ::= <identifier> "@" <domain_name>
+(* $800 *) <uuid_literal>         ::= <hex_digit> <hex_digit> <hex_digit> <hex_digit>
+(*         *)                         <hex_digit> <hex_digit> <hex_digit> <hex_digit>
+(*         *)                         "-" <hex_digit> <hex_digit> <hex_digit> <hex_digit>
+(*         *)                         "-" <hex_digit> <hex_digit> <hex_digit> <hex_digit>
+(*         *)                         "-" <hex_digit> <hex_digit> <hex_digit> <hex_digit>
+(*         *)                         "-" <hex_digit> <hex_digit> <hex_digit> <hex_digit>
+(*         *)                             <hex_digit> <hex_digit> <hex_digit> <hex_digit>
+(*         *)                             <hex_digit> <hex_digit> <hex_digit> <hex_digit>
+(* $801 *) <semver_literal>       ::= <decimal_integer> "." <decimal_integer> "." <decimal_integer> <prerelease>?
+(* $802 *) <prerelease>           ::= "-" <identifier>
+(* $803 *) <date_literal>         ::= <decimal_integer> "-" <decimal_integer> "-" <decimal_integer>
+(* $804 *) <time_literal>         ::= <decimal_integer> ":" <decimal_integer> ":" <decimal_integer>
+(* $805 *) <datetime_literal>     ::= <date_literal> "T" <time_literal> <timezone_offset>?
+(* $806 *) <timezone_offset>      ::= "Z" | ("+" | "-") <decimal_integer> ":" <decimal_integer>
+(* $807 *) <path_literal>         ::= "/" <path_segment> ("/" <path_segment>)* "/"?
+(* $808 *) <path_segment>         ::= <identifier> | ".." | "."
+(* $809 *) <template_literal>     ::= "`" <template_part>* "`"
+(* $810 *) <multiline_literal>    ::= <triple_double_string>
+(* $811 *) <raw_string>           ::= "r'" <sq_plain>* "'"
+(* $812 *) <raw_double_string>    ::= 'r"' <dq_plain>* '"'
+(* $813 *) <byte_literal>         ::= "0x" <hex_digit> <hex_digit>
+(* $814 *) <char_literal>         ::= "'" <sq_char> "'"
+(* $815 *) <symbol_literal>       ::= ":" <identifier>
+(* $816 *) <infinity_literal>     ::= "Infinity" | "+Infinity" | "-Infinity"
+(* $817 *) <nan_literal>          ::= "NaN"
+(* $818 *) <numeric_literal>      ::= <integer_literal> | <float_literal>
+(* $819 *) <number_literal>       ::= <numeric_literal>
+(* $820 *) <percentage_literal>   ::= <decimal_integer> "%"
+
+
+(* ============================================================================ *)
+(*  SECTION 14 — IDENTIFIER AND LEXICAL RULES                                   *)
+(*  Rules $821 – $900                                                            *)
+(* ============================================================================ *)
+
+(* $821 *) <identifier>           ::= <ident_start> <ident_cont>*
+(* $822 *) <ident_start>          ::= <letter> | "_"
+(* $823 *) <ident_cont>           ::= <letter> | <digit> | "_" | "-"
+(* $824 *) <identifier_list>      ::= <identifier> <identifier_list_tail>*
+(* $825 *) <identifier_list_tail> ::= <comma> <identifier>
+(* $826 *) <letter>               ::= <uppercase_letter> | <lowercase_letter>
+(* $827 *) <uppercase_letter>     ::= "A" | "B" | "C" | "D" | "E" | "F" | "G"
+(* $828 *)                         | "H" | "I" | "J" | "K" | "L" | "M" | "N"
+(* $829 *)                         | "O" | "P" | "Q" | "R" | "S" | "T" | "U"
+(* $830 *)                         | "V" | "W" | "X" | "Y" | "Z"
+(* $831 *) <lowercase_letter>     ::= "a" | "b" | "c" | "d" | "e" | "f" | "g"
+(* $832 *)                         | "h" | "i" | "j" | "k" | "l" | "m" | "n"
+(* $833 *)                         | "o" | "p" | "q" | "r" | "s" | "t" | "u"
+(* $834 *)                         | "v" | "w" | "x" | "y" | "z"
+(* $835 *) <digit>                ::= "0" | "1" | "2" | "3" | "4"
+(* $836 *)                         | "5" | "6" | "7" | "8" | "9"
+(* $837 *) <hex_digit>            ::= <digit>
+(* $838 *)                         | "a" | "b" | "c" | "d" | "e" | "f"
+(* $839 *)                         | "A" | "B" | "C" | "D" | "E" | "F"
+(* $840 *) <octal_digit>          ::= "0"|"1"|"2"|"3"|"4"|"5"|"6"|"7"
+(* $841 *) <binary_digit>         ::= "0" | "1"
+(* $842 *) <letter_or_digit>      ::= <letter> | <digit>
+(* $843 *) <alphanumeric>         ::= <letter_or_digit> | "_"
+(* $844 *) <word_char>            ::= <letter_or_digit> | "_" | "-"
+(* $845 *) <printable_char>       ::= (* any printable Unicode character U+0020 – U+FFFD *)
+(* $846 *) <non_whitespace>       ::= (* any char that is not whitespace *)
+(* $847 *) <any_char>             ::= (* any Unicode character *)
+(* $848 *) <whitespace>           ::= <whitespace_char>+
+(* $849 *) <whitespace_char>      ::= " " | "\t" | "\r" | "\n" | "\u000B" | "\u000C"
+(* $850 *) <optional_whitespace>  ::= <whitespace>?
+(* $851 *) <newline>              ::= "\n" | "\r\n" | "\r"
+(* $852 *) <line_end>             ::= <newline> | <eof>
+(* $853 *) <inline_whitespace>    ::= (" " | "\t")+
+(* $854 *) <camel_case_ident>     ::= <lowercase_letter> (<letter_or_digit>)*
+(* $855 *) <pascal_case_ident>    ::= <uppercase_letter> (<letter_or_digit>)*
+(* $856 *) <snake_case_ident>     ::= <lowercase_letter> (<lowercase_letter> | <digit> | "_")*
+(* $857 *) <screaming_snake>      ::= <uppercase_letter> (<uppercase_letter> | <digit> | "_")*
+(* $858 *) <kebab_case_ident>     ::= <lowercase_letter> (<lowercase_letter> | <digit> | "-")*
+(* $859 *) <dotted_identifier>    ::= <identifier> ("." <identifier>)+
+(* $860 *) <scoped_identifier>    ::= <identifier> ("::" <identifier>)+
+(* $861 *) <versioned_identifier> ::= <identifier> "@" <version_literal>
+(* $862 *) <namespaced_identifier>::= <identifier> "." <identifier> ("." <identifier>)*
+(* $863 *) <prefixed_identifier>  ::= ("@" | "#" | "$" | "!" | "~") <identifier>
+(* $864 *) <at_identifier>        ::= "@" <identifier>
+(* $865 *) <hash_identifier>      ::= "#" <identifier>
+(* $866 *) <dollar_identifier>    ::= "$" <identifier>
+(* $867 *) <bang_identifier>      ::= "!" <identifier>
+(* $868 *) <tilde_identifier>     ::= "~" <identifier>
+(* $869 *) <compound_identifier>  ::= <identifier> <identifier_suffix>+
+(* $870 *) <identifier_suffix>    ::= "." <identifier> | "[" <index_expr> "]"
+(* $871 *) <reserved_word>        ::= <psdl_keyword>
+(* $872 *)                         | <type_keyword>
+(* $873 *)                         | <operator_word>
+(* $874 *)                         | <directive_keyword>
+(* $875 *) <psdl_keyword>         ::= "task" | "context" | "stack" | "tone" | "format"
+(* $876 *)                         | "security" | "target" | "focus" | "schema"
+(* $877 *)                         | "never" | "always" | "shared" | "import" | "export"
+(* $878 *)                         | "from" | "as" | "with" | "for" | "in" | "not"
+(* $879 *)                         | "if" | "else" | "let" | "const" | "var"
+(* $880 *)                         | "true" | "false" | "null" | "nil" | "none"
+(* $881 *)                         | "yes" | "no" | "on" | "off"
+(* $882 *) <type_keyword>         ::= "str" | "string" | "int" | "integer" | "float"
+(* $883 *)                         | "bool" | "boolean" | "bytes" | "any" | "void"
+(* $884 *)                         | "never" | "unknown" | "enum" | "map" | "set"
+(* $885 *)                         | "partial" | "required" | "readonly" | "record"
+(* $886 *) <operator_word>        ::= "in" | "not" | "is" | "and" | "or" | "xor"
+(* $887 *)                         | "contains" | "has" | "like" | "matches"
+(* $888 *)                         | "member" | "subset" | "superset" | "notin"
+(* $889 *) <directive_keyword>    ::= "model" | "profile" | "debug" | "trace" | "strict"
+(* $890 *)                         | "permissive" | "compress" | "hydrate" | "mangle"
+(* $891 *)                         | "shake" | "fold" | "anchor" | "noanchor"
+(* $892 *) <non_reserved_word>    ::= (* any identifier that is not a reserved word *)
+(* $893 *) <contextual_keyword>   ::= (* reserved in specific syntactic positions only *)
+(* $894 *) <soft_keyword>         ::= "abstract" | "final" | "override" | "sealed"
+(* $895 *)                         | "deprecated" | "experimental" | "internal"
+(* $896 *) <predefined_identifier>::= <identifier>                              (* context determines reservation *)
+(* $897 *) <escaped_identifier>   ::= "`" <identifier> "`"
+(* $898 *) <unicode_identifier>   ::= (* identifier using Unicode letters U+00C0-U+FFFD *)
+(* $899 *) <id_with_digits>       ::= <identifier> <digit>+
+(* $900 *) <private_identifier>   ::= "_" <identifier>
+
+
+(* ============================================================================ *)
+(*  SECTION 15 — COMMENT SYNTAX                                                 *)
+(*  Rules $901 – $940                                                            *)
+(* ============================================================================ *)
+
+(* $901 *) <comment_line>         ::= <line_comment>
+(* $902 *) <line_comment>         ::= "//" <line_comment_body> <line_end>
+(* $903 *) <line_comment_body>    ::= (* any sequence not containing newline *)
+(* $904 *) <comment_block>        ::= <block_comment>
+(* $905 *) <block_comment>        ::= "(*" <block_comment_body> "*)"
+(* $906 *) <block_comment_alt>    ::= "/*" <block_comment_body_alt> "*/"
+(* $907 *) <block_comment_body>   ::= (* any sequence not containing ")" + "*" when adjacent *)
+(* $908 *) <block_comment_body_alt> ::= (* any sequence not containing "*/" *)
+(* $909 *) <doc_comment>          ::= "/**" <doc_comment_body> "*/"
+(* $910 *) <doc_comment_body>     ::= (* any sequence not containing "*/" *)
+(* $911 *) <nested_comment>       ::= "(*" <nested_comment_body> "*)"
+(* $912 *) <nested_comment_body>  ::= (* any text, including nested (* ... *) *)
+(* $913 *) <hash_comment>         ::= "#" <line_comment_body> <line_end>        (* shell style *)
+(* $914 *) <inline_comment>       ::= <value_expr> "//" <line_comment_body>
+(* $915 *) <annotation>           ::= "@" <identifier> <lparen> <value_expr>? <rparen>
+(* $916 *) <doc_tag>              ::= "@" <doc_tag_name> <inline_whitespace> <doc_tag_body>
+(* $917 *) <doc_tag_name>         ::= "param" | "returns" | "throws" | "see"
+(* $918 *)                         | "since" | "deprecated" | "example"
+(* $919 *) <doc_tag_body>         ::= (* any text to end of line *)
+(* $920 *) <todo_comment>         ::= "//" <inline_whitespace>? "TODO" ":" <line_comment_body>
+(* $921 *) <fixme_comment>        ::= "//" <inline_whitespace>? "FIXME" ":" <line_comment_body>
+(* $922 *) <attencion_comment>    ::= "//" <inline_whitespace>? "\u26A0\uFE0F" <inline_whitespace>? "ATENCION" ":" <line_comment_body>
+(* $923 *) <punto_ciego_comment>  ::= "//" <inline_whitespace>? "\u26A0\uFE0F" <inline_whitespace>? "PUNTO CIEGO DEL AI" ":" <line_comment_body>
+(* $924 *) <section_comment>      ::= "(*" <star_bar_line> <section_name> <star_bar_line> "*)"
+(* $925 *) <star_bar_line>        ::= " " "="+ " "
+(* $926 *) <section_name>         ::= (* any text *)
+(* $927 *) <separator_comment>    ::= "//" "-"+ <line_end>
+(* $928 *) <region_start>         ::= "//" <inline_whitespace>? "#region" <line_comment_body>
+(* $929 *) <region_end>           ::= "//" <inline_whitespace>? "#endregion"
+(* $930 *) <pragma_comment>       ::= "//" <inline_whitespace>? "@pragma" <inline_whitespace> <identifier> <line_comment_body>
+(* $931 *) <noqa_comment>         ::= "//" <inline_whitespace>? "noqa" <line_end>
+(* $932 *) <noinspect_comment>    ::= "//" <inline_whitespace>? "noinspection" <line_comment_body>
+(* $933 *) <license_comment>      ::= "/*" <inline_whitespace>? "SPDX-License-Identifier:" <inline_whitespace> <identifier> <inline_whitespace>? "*/"
+(* $934 *) <copyright_comment>    ::= "//" <inline_whitespace>? "Copyright" <line_comment_body>
+(* $935 *) <suppression_comment>  ::= "//" <inline_whitespace>? "suppress" <inline_whitespace> <identifier>
+(* $936 *) <version_comment>      ::= "//" <inline_whitespace>? "v" <version_literal>
+(* $937 *) <author_comment>       ::= "//" <inline_whitespace>? "author:" <line_comment_body>
+(* $938 *) <file_comment>         ::= <doc_comment>
+(* $939 *) <comment_or_blank>     ::= <comment_line> | <comment_block> | <blank_line>
+(* $940 *) <comment_sequence>     ::= <comment_or_blank>+
+
+
+(* ============================================================================ *)
+(*  SECTION 16 — OPERATOR TAXONOMY                                              *)
+(*  Rules $941 – $1020                                                           *)
+(* ============================================================================ *)
+
+(* $941 *) <psdl_operator>        ::= <flow_operator>
+(* $942 *)                         | <relational_operator>
+(* $943 *)                         | <logical_operator>
+(* $944 *)                         | <modifier_operator>
+(* $945 *)                         | <structural_operator>
+(* $946 *)                         | <arithmetic_operator>
+(* $947 *)                         | <bitwise_operator>
+(* $948 *)                         | <assignment_operator>
+(* $949 *)                         | <spread_operator>
+(* $950 *)                         | <access_operator>
+(*  -- FLOW OPERATORS --                                                        *)
+(* $951 *) <flow_operator>        ::= <pipe_op> | <arrow_op> | <fat_arrow_op>
+(* $952 *)                         | <double_arrow_op> | <fork_op>
+(* $953 *) <pipe_op>              ::= "|"
+(* $954 *) <double_arrow_op>      ::= "->>"
+(* $955 *) <map_arrow_op>         ::= "=>"                                      (* guard => action *)
+(* $956 *) <bind_op>              ::= ">>="
+(* $957 *) <compose_op>           ::= ">>"
+(* $958 *) <reverse_compose>      ::= "<<"
+(* $959 *) <apply_op>             ::= "<|"
+(* $960 *) <apply_right>          ::= "|>"
+(*  -- RELATIONAL OPERATORS --                                                  *)
+(* $961 *) <relational_operator>  ::= <in_op> | <not_in_op> | <contains_op>
+(* $962 *)                         | <not_contains_op> | <matches_op>
+(* $963 *)                         | <eq_op> | <neq_op>
+(* $964 *)                         | <lt_op> | <gt_op> | <lte_op> | <gte_op>
+(* $965 *)                         | <subset_op> | <superset_op>
+(*  -- LOGICAL OPERATORS --                                                     *)
+(* $966 *) <logical_operator>     ::= <and_op> | <or_op> | <not_op>
+(* $967 *)                         | <xor_op> | <implies_op> | <iff_op>
+(* $968 *) <xor_op>               ::= "xor" | "^" | "\u2295"                   (* ⊕ U+2295 *)
+(* $969 *) <implies_op>           ::= "implies" | "\u21D2"                      (* ⇒ U+21D2 *)
+(* $970 *) <iff_op>               ::= "iff" | "\u21D4"                          (* ⇔ U+21D4 *)
+(* $971 *) <nand_op>              ::= "nand"
+(* $972 *) <nor_op>               ::= "nor"
+(* $973 *) <not_and>              ::= "!" "&&"
+(* $974 *) <not_or>               ::= "!" "||"
+(*  -- MODIFIER OPERATORS (Unicode) --                                          *)
+(* $975 *) <modifier_operator>    ::= <critical_op> | <warning_op>
+(* $976 *)                         | <required_op> | <optional_op>
+(* $977 *) <critical_op>          ::= "\u26A1"                                  (* ⚡ U+26A1 *)
+(* $978 *) <warning_op>           ::= "\u26A0"                                  (* ⚠ U+26A0 *)
+(* $979 *) <warning_op_combined>  ::= "\u26A0\uFE0F"                            (* ⚠️ combined *)
+(* $980 *) <required_op>          ::= "\u2205"                                  (* ∅ U+2205 *)
+(* $981 *) <optional_op>          ::= "?"
+(* $982 *) <priority_high>        ::= "\u2B06"                                  (* ⬆ U+2B06 *)
+(* $983 *) <priority_low>         ::= "\u2B07"                                  (* ⬇ U+2B07 *)
+(* $984 *) <check_op>             ::= "\u2714"                                  (* ✔ U+2714 *)
+(* $985 *) <cross_op>             ::= "\u2718"                                  (* ✘ U+2718 *)
+(* $986 *) <star_op>              ::= "\u2605"                                  (* ★ U+2605 *)
+(*  -- STRUCTURAL OPERATORS --                                                  *)
+(* $987 *) <structural_operator>  ::= <scope_op> | <namespace_op>
+(* $988 *)                         | <inherit_op> | <mixin_op>
+(* $989 *) <scope_op>             ::= <lbrace> <rbrace>
+(* $990 *) <namespace_op>         ::= "::"
+(* $991 *) <inherit_op>           ::= "<"                                       (* agent < parent [LL2] *)
+(* $992 *) <mixin_op>             ::= "+"
+(* $993 *) <override_op>          ::= "!"
+(*  -- ARITHMETIC OPERATORS --                                                  *)
+(* $994 *) <arithmetic_operator>  ::= "+" | "-" | "*" | "/" | "%" | "**"
+(* $995 *) <addition>             ::= "+"
+(* $996 *) <subtraction>          ::= "-"
+(* $997 *) <multiplication>       ::= "*"
+(* $998 *) <division>             ::= "/"
+(* $999 *) <modulo>               ::= "%"
+(* $1000*) <exponentiation>       ::= "**"
+(* $1001*) <floor_div>            ::= "//"
+(* $1002*) <negate>               ::= "-" <primary_expr>
+(*  -- BITWISE OPERATORS --                                                     *)
+(* $1003*) <bitwise_operator>     ::= "&" | "|" | "^" | "~" | "<<" | ">>"
+(* $1004*) <bitwise_and>          ::= "&"
+(* $1005*) <bitwise_or>           ::= "|"
+(* $1006*) <bitwise_xor>          ::= "^"
+(* $1007*) <bitwise_not>          ::= "~"
+(* $1008*) <left_shift>           ::= "<<"
+(* $1009*) <right_shift>          ::= ">>"
+(* $1010*) <unsigned_right_shift> ::= ">>>"
+(*  -- ASSIGNMENT OPERATORS --                                                  *)
+(* $1011*) <assignment_operator>  ::= "=" | ":=" | "+=" | "-=" | "*=" | "/="
+(* $1012*) <assign>               ::= "="
+(* $1013*) <define>               ::= ":="
+(* $1014*) <add_assign>           ::= "+="
+(* $1015*) <sub_assign>           ::= "-="
+(* $1016*) <mul_assign>           ::= "*="
+(* $1017*) <div_assign>           ::= "/="
+(* $1018*) <spread_operator>      ::= "..."
+(* $1019*) <access_operator>      ::= <dot> | "[" | "?."
+(* $1020*) <nullcoalesce_op>      ::= "??"
+
+
+(* ============================================================================ *)
+(*  SECTION 17 — UNICODE OPERATOR FULL TABLE                                    *)
+(*  Rules $1021 – $1100                                                          *)
+(* ============================================================================ *)
+
+(* $1021*) <unicode_op>           ::= <unicode_set_op>
+(* $1022*)                         | <unicode_logic_op>
+(* $1023*)                         | <unicode_arrow_op>
+(* $1024*)                         | <unicode_modifier_op>
+(* $1025*)                         | <unicode_misc_op>
+(* $1026*) <unicode_set_op>       ::= "\u2208"                                  (* ∈ element-of *)
+(* $1027*)                         | "\u2209"                                   (* ∉ not-element-of *)
+(* $1028*)                         | "\u2282"                                   (* ⊂ proper-subset *)
+(* $1029*)                         | "\u2283"                                   (* ⊃ proper-superset *)
+(* $1030*)                         | "\u2284"                                   (* ⊄ not-subset *)
+(* $1031*)                         | "\u2285"                                   (* ⊅ not-superset *)
+(* $1032*)                         | "\u2286"                                   (* ⊆ subset-or-equal *)
+(* $1033*)                         | "\u2287"                                   (* ⊇ superset-or-equal *)
+(* $1034*)                         | "\u2229"                                   (* ∩ intersection *)
+(* $1035*)                         | "\u222A"                                   (* ∪ union *)
+(* $1036*)                         | "\u2205"                                   (* ∅ empty-set / required *)
+(* $1037*)                         | "\u2216"                                   (* ∖ set-minus *)
+(* $1038*)                         | "\u25B3"                                   (* △ symmetric-difference *)
+(* $1039*)                         | "\u2135"                                   (* ℵ cardinality *)
+(* $1040*) <unicode_logic_op>     ::= "\u2227"                                  (* ∧ logical-and *)
+(* $1041*)                         | "\u2228"                                   (* ∨ logical-or *)
+(* $1042*)                         | "\u00AC"                                   (* ¬ logical-not *)
+(* $1043*)                         | "\u22A4"                                   (* ⊤ top/true *)
+(* $1044*)                         | "\u22A5"                                   (* ⊥ bottom/false *)
+(* $1045*)                         | "\u2295"                                   (* ⊕ xor *)
+(* $1046*)                         | "\u21D2"                                   (* ⇒ implies *)
+(* $1047*)                         | "\u21D4"                                   (* ⇔ biconditional *)
+(* $1048*)                         | "\u22A2"                                   (* ⊢ turnstile / derives *)
+(* $1049*)                         | "\u22A8"                                   (* ⊨ models *)
+(* $1050*) <unicode_arrow_op>     ::= "\u2192"                                  (* → maps-to / pipeline *)
+(* $1051*)                         | "\u21D2"                                   (* ⇒ implies / fat-arrow *)
+(* $1052*)                         | "\u2190"                                   (* ← reverse-pipeline *)
+(* $1053*)                         | "\u21D0"                                   (* ⇐ reverse-implies *)
+(* $1054*)                         | "\u2194"                                   (* ↔ bidirectional *)
+(* $1055*)                         | "\u21D4"                                   (* ⇔ biconditional *)
+(* $1056*)                         | "\u21A6"                                   (* ↦ mapsto *)
+(* $1057*)                         | "\u27F9"                                   (* ⟹ long-implies *)
+(* $1058*)                         | "\u27F8"                                   (* ⟸ long-reverse-implies *)
+(* $1059*)                         | "\u27FA"                                   (* ⟺ long-biconditional *)
+(* $1060*) <unicode_modifier_op>  ::= "\u26A1"                                  (* ⚡ critical *)
+(* $1061*)                         | "\u26A0"                                   (* ⚠ warning *)
+(* $1062*)                         | "\u2205"                                   (* ∅ required/empty *)
+(* $1063*)                         | "\u2714"                                   (* ✔ check / enabled *)
+(* $1064*)                         | "\u2718"                                   (* ✘ cross / disabled *)
+(* $1065*)                         | "\u2605"                                   (* ★ priority *)
+(* $1066*)                         | "\u2B50"                                   (* ⭐ high-priority *)
+(* $1067*)                         | "\u2B06"                                   (* ⬆ priority-up *)
+(* $1068*)                         | "\u2B07"                                   (* ⬇ priority-down *)
+(* $1069*)                         | "\u1F525"                                  (* 🔥 hot/urgent *)
+(* $1070*)                         | "\u1F512"                                  (* 🔒 locked/secure *)
+(* $1071*)                         | "\u1F513"                                  (* 🔓 unlocked *)
+(* $1072*) <unicode_misc_op>      ::= "\u2200"                                  (* ∀ for-all *)
+(* $1073*)                         | "\u2203"                                   (* ∃ there-exists *)
+(* $1074*)                         | "\u2204"                                   (* ∄ there-does-not-exist *)
+(* $1075*)                         | "\u2234"                                   (* ∴ therefore *)
+(* $1076*)                         | "\u2235"                                   (* ∵ because *)
+(* $1077*)                         | "\u2237"                                   (* ∷ proportion / such-that *)
+(* $1078*)                         | "\u2248"                                   (* ≈ approximately *)
+(* $1079*)                         | "\u2260"                                   (* ≠ not-equal *)
+(* $1080*)                         | "\u2264"                                   (* ≤ less-than-or-equal *)
+(* $1081*)                         | "\u2265"                                   (* ≥ greater-than-or-equal *)
+(* $1082*)                         | "\u221E"                                   (* ∞ infinity *)
+(* $1083*)                         | "\u2205"                                   (* ∅ empty / null *)
+(* $1084*)                         | "\u22EF"                                   (* ⋯ horizontal-ellipsis *)
+(* $1085*)                         | "\u22EE"                                   (* ⋮ vertical-ellipsis *)
+(* $1086*)                         | "\u22F1"                                   (* ⋱ diagonal-dots *)
+(* $1087*)                         | "\u00D7"                                   (* × cross-product *)
+(* $1088*)                         | "\u00F7"                                   (* ÷ division *)
+(* $1089*)                         | "\u2213"                                   (* ∓ minus-or-plus *)
+(* $1090*)                         | "\u00B1"                                   (* ± plus-or-minus *)
+(* $1091*) <ascii_equivalent>     ::= <ascii_op_alias>
+(* $1092*) <ascii_op_alias>       ::= "in"     (* alias for ∈ *)
+(* $1093*)                         | "notin"   (* alias for ∉ *)
+(* $1094*)                         | "subset"  (* alias for ⊂ *)
+(* $1095*)                         | "supset"  (* alias for ⊃ *)
+(* $1096*)                         | "inter"   (* alias for ∩ *)
+(* $1097*)                         | "union"   (* alias for ∪ *)
+(* $1098*)                         | "empty"   (* alias for ∅ *)
+(* $1099*)                         | "=>>"     (* alias for ⇒ extended *)
+(* $1100*)                         | "->>"     (* alias for → extended *)
+
+
+(* ============================================================================ *)
+(*  SECTION 18 — LL(1)/LL(2) DISAMBIGUATION RULES                               *)
+(*  Rules $1101 – $1160                                                          *)
+(* ============================================================================ *)
+
+(*  All five LL(2) disambiguation cases are documented here with their          *)
+(*  lookahead decision procedures.                                               *)
+
+(* $1101*) <disambig_agent_def_vs_ref>   ::= (* LL2 Case 1 *)
+(*         *)  (* Token k   = "@"                                               *)
+(*         *)  (* Token k+1 = identifier                                        *)
+(*         *)  (* Token k+2 = "{"  → agent_def                                 *)
+(*         *)  (* Token k+2 = ","  → agent_ref (in parent list)                *)
+(*         *)  (* Token k+2 = other → agent_ref_inline                         *)
+(* $1102*) <disambig_agent_def>          ::= "@" <identifier> "{"               (* parse as agent_def *)
+(* $1103*) <disambig_agent_ref_inline>   ::= "@" <identifier>                   (* parse as agent_ref *)
+(* $1104*) <disambig_directive_vs_neg>   ::= (* LL2 Case 2 *)
+(*         *)  (* Token k   = "!" at line_start                                *)
+(*         *)  (* Token k+1 = identifier                                        *)
+(*         *)  (* Token k+2 = whitespace or ";" → directive / negation_stmt    *)
+(*         *)  (* Token k+2 = ":"  → directive_stmt with body                  *)
+(* $1105*) <disambig_negation_stmt>      ::= "!" <identifier> <semicolon>       (* negation *)
+(* $1106*) <disambig_directive_stmt>     ::= "!" <identifier> <colon>           (* directive *)
+(* $1107*) <disambig_enum_vs_list>       ::= (* LL2 Case 3 *)
+(*         *)  (* Token k   = "["                                               *)
+(*         *)  (* Token k+1 = value                                             *)
+(*         *)  (* Token k+2 = "|"  → enum_expr                                 *)
+(*         *)  (* Token k+2 = "," or "]" → list_expr                           *)
+(* $1108*) <disambig_enum_expr>          ::= "[" <enum_member> "|"              (* enum *)
+(* $1109*) <disambig_list_expr>          ::= "[" <value_expr> ","               (* list *)
+(* $1110*) <disambig_singleton>          ::= "[" <value_expr> "]"               (* list with one element *)
+(* $1111*) <disambig_inherit_vs_lt>      ::= (* LL2 Case 4 *)
+(*         *)  (* Token k   = identifier                                        *)
+(*         *)  (* Token k+1 = "<"                                               *)
+(*         *)  (* Token k+2 = identifier and token k-1 = "@" → inheritance     *)
+(*         *)  (* Token k+2 = identifier and token k-1 ≠ "@" → lt comparison   *)
+(* $1112*) <disambig_inheritance>        ::= (* seen "@" then identifier then "<" *)
+(*         *)                                (* lookahead 2 = identifier → inheritance *)
+(* $1113*) <disambig_comparison>         ::= (* seen identifier NOT preceded by "@" then "<" *)
+(*         *)                                (* lookahead 2 = identifier → lt_op comparison *)
+(* $1114*) <disambig_compose_vs_logic>   ::= (* LL2 Case 5 *)
+(*         *)  (* Token k   = "&"                                               *)
+(*         *)  (* Context   = inside value_expr (compose) vs guard (logical) *)
+(*         *)  (* Single "&" in value context → compose_expr *)
+(*         *)  (* "&&" → logical and_op *)
+(* $1115*) <disambig_compose>            ::= <value_expr> "&" <value_expr>      (* compose *)
+(* $1116*) <disambig_logical_and>        ::= <condition_expr> "&&" <condition_expr> (* logical *)
+(* $1117*) <disambig_property_vs_pipeline>::= (* LL2 auxiliary *)
+(*         *)  (* "task" ":" value "->" ...  → pipeline_stmt                   *)
+(*         *)  (* "key"  ":" value ";"       → property_stmt                   *)
+(* $1118*) <disambig_task_pipeline>      ::= "task" ":" <primary_expr> "->"     (* pipeline *)
+(* $1119*) <disambig_task_property>      ::= "task" ":" <value_expr> ";"        (* property *)
+(* $1120*) <disambig_schema_ref_vs_def>  ::= (* auxiliary *)
+(*         *)  (* "#" identifier "{" → schema_def                              *)
+(*         *)  (* "#" identifier other → schema_ref                            *)
+(* $1121*) <disambig_schema_def_lead>    ::= "#schema" <identifier> "{"
+(* $1122*) <disambig_schema_ref_lead>    ::= "#" <identifier>
+(* $1123*) <disambig_shared_vs_negation> ::= (* auxiliary *)
+(*         *)  (* "!shared" → shared_def (keyword)                             *)
+(*         *)  (* "!" identifier → negation_stmt (generic)                     *)
+(* $1124*) <disambig_shared_keyword>     ::= "!shared" <identifier>
+(* $1125*) <disambig_neg_generic>        ::= "!" <identifier>
+(* $1126*) <first_set_agent_def>         ::= "@"                                (* FIRST(@) *)
+(* $1127*) <first_set_schema_def>        ::= "#schema"                          (* FIRST(#s) *)
+(* $1128*) <first_set_shared_def>        ::= "!shared" | "shared" | "#shared"
+(* $1129*) <first_set_directive>         ::= "@" | "#" | "!"                   (* [LL2] *)
+(* $1130*) <first_set_property>          ::= <property_key>                     (* identifier *)
+(* $1131*) <first_set_negation>          ::= "!"                                (* [LL2] *)
+(* $1132*) <first_set_constraint>        ::= <condition_lhs>
+(* $1133*) <follow_set_agent_def>        ::= <first_set_statement> | <eof>
+(* $1134*) <first_set_statement>         ::= "@" | "#" | "!" | <identifier>
+(* $1135*) <nullable_rule_agent_body>    ::= (* agent_body can be empty: {} is valid *)
+(* $1136*) <nullable_rule_schema_body>   ::= (* schema_body can be empty: {} is valid *)
+(* $1137*) <nullable_rule_shared_body>   ::= (* shared_body can be empty: {} is valid *)
+(* $1138*) <nullable_rule_program>       ::= (* program can be empty file *)
+(* $1139*) <lookahead_1_token>           ::= (* decision based on next token only *)
+(* $1140*) <lookahead_2_tokens>          ::= (* decision based on next two tokens *)
+(* $1141*) <parser_state_in_agent>       ::= (* parser has entered an agent body *)
+(* $1142*) <parser_state_in_guard>       ::= (* parser has entered a guard clause *)
+(* $1143*) <parser_state_in_value>       ::= (* parser has entered a value expression *)
+(* $1144*) <parser_state_in_schema>      ::= (* parser has entered a schema body *)
+(* $1145*) <parser_state_top_level>      ::= (* parser is at top level *)
+(* $1146*) <context_sensitive_and>       ::= (* "&" meaning depends on parser state: *)
+(*         *)  (* in value context: compose_tail *)
+(*         *)  (* in guard context: compound_guard requires "&&" not "&" *)
+(* $1147*) <context_sensitive_lt>        ::= (* "<" meaning depends on parser state: *)
+(*         *)  (* after "@" identifier: inheritance *)
+(*         *)  (* in condition: lt_op *)
+(* $1148*) <context_sensitive_bang>      ::= (* "!" meaning depends on parser state: *)
+(*         *)  (* at line_start: negation_stmt or directive *)
+(*         *)  (* in expression: logical not *)
+(* $1149*) <context_sensitive_pipe>      ::= (* "|" meaning depends on context: *)
+(*         *)  (* in enum: enum_tail *)
+(*         *)  (* in type: union_type *)
+(*         *)  (* in expression: bitwise_or or pipe_op *)
+(* $1150*) <context_sensitive_hash>      ::= (* "#" meaning depends on context: *)
+(*         *)  (* "#schema": schema_def keyword *)
+(*         *)  (* "#shared": shared_def keyword *)
+(*         *)  (* "#identifier": schema_ref or const_ref *)
+(* $1151*) <backtrack_prohibited>        ::= (* PSDT parser never backtracks: all *)
+(*         *)  (* disambiguation must be resolved by lookahead ≤ 2              *)
+(* $1152*) <determinism_invariant>       ::= (* For all production rules R in PSDL: *)
+(*         *)  (* FIRST(R) ∩ FOLLOW(R) = ∅ when R is nullable                  *)
+(*         *)  (* FIRST(Ri) ∩ FIRST(Rj) = ∅ for all alternatives Ri, Rj        *)
+(*         *)  (* with at most 2-token lookahead for LL(2) rules                *)
+(* $1153*) <ll1_satisfied_rules>         ::= (* All rules except LL(2) cases 1-5   *)
+(* $1154*) <ll2_required_rules>          ::= (* agent_head, negation_stmt,          *)
+(*         *)  (* list_expr vs enum_expr, inheritance vs lt_op, compose vs and  *)
+(* $1155*) <error_production>            ::= <unexpected_token_recovery>
+(* $1156*) <unexpected_token_recovery>   ::= (* skip tokens until synchronization point *)
+(* $1157*) <sync_token>                  ::= <semicolon> | <rbrace> | <eof>
+(* $1158*) <panic_mode_recovery>         ::= (* discard tokens up to next <sync_token> *)
+(* $1159*) <error_node>                  ::= (* AST node representing parse error *)
+(* $1160*) <partial_parse>               ::= (* result when recovery occurs *)
+
+
+(* ============================================================================ *)
+(*  SECTION 19 — ANCHORREGISTRY SPECIFICATION                                   *)
+(*  Rules $1161 – $1230                                                          *)
+(* ============================================================================ *)
+
+(*  Rules in this section are semantics-phase specifications, not syntax rules.  *)
+(*  They document WHICH syntactic positions trigger AnchorRegistry.add() calls  *)
+(*  during Phase 03 semantic analysis. A token T at position P is registered    *)
+(*  as an anchor if P satisfies any of the predicates below.                    *)
+
+(* $1161*) <anchor_registration>     ::= (* Phase 03: AnchorRegistry.add(token) when: *)
+(* $1162*) <anchor_tech_name>        ::= (* token appears as <identifier> in stack_list position *)
+(*         *)                             (* Examples: TypeScript, Express, React, Node, Django   *)
+(* $1163*) <anchor_agent_name>       ::= (* token is <agent_name> in agent_def *)
+(* $1164*) <anchor_parent_name>      ::= (* token is <parent_name> in inheritance list *)
+(* $1165*) <anchor_schema_name>      ::= (* token is <schema_name> in schema_def or schema_ref *)
+(* $1166*) <anchor_field_name>       ::= (* token is <field_name> in schema required field *)
+(* $1167*) <anchor_enum_member>      ::= (* token is <enum_identifier> in enum_member *)
+(* $1168*) <anchor_func_name>        ::= (* token is <func_name> in func_call_expr *)
+(*         *)                             (* Examples: hash_passwords, validate_emails, jwt_expiration *)
+(* $1169*) <anchor_shared_name>      ::= (* token is <shared_name> in shared_def *)
+(* $1170*) <anchor_focus_item>       ::= (* token is <focus_item> in focus_stmt *)
+(* $1171*) <anchor_tool_item>        ::= (* token is <tool_item> identifier in tool_list *)
+(* $1172*) <anchor_hash_schema_ref>  ::= (* token is schema name in hash_schema_ref *)
+(* $1173*) <anchor_model_name>       ::= (* token is <identifier> in "model:" property *)
+(* $1174*) <anchor_brand_name>       ::= (* token is <string_literal> value of "brand:" key *)
+(* $1175*) <anchor_lang_code>        ::= (* token is string value of "lang:" key *)
+(* $1176*) <anchor_security_rule>    ::= (* token is <func_name> in security_list *)
+(* $1177*) <anchor_pipeline_sink>    ::= (* token is <pipeline_sink> identifier *)
+(* $1178*) <anchor_behavioral_opcode>::= (* token is <property_key> with critical modifier *)
+(* $1179*) <anchor_negation_target>  ::= (* critical negation targets: !plaintext_passwords etc. *)
+(* $1180*) <anchor_constraint_key>   ::= (* lhs of high-FAI constraint *)
+(* $1181*) <anchor_qualified_name>   ::= (* dotted identifiers in tech context *)
+(* $1182*) <anchor_hash_algorithm>   ::= (* <hash_algorithm> in hash_passwords call *)
+(* $1183*) <anchor_sign_algorithm>   ::= (* <sign_algorithm> in sign_fn call *)
+(* $1184*) <anchor_target_name>      ::= (* <target_name> in target_stmt *)
+(* $1185*) <anchor_namespace>        ::= (* namespace identifiers *)
+(* $1186*) <anchor_import_path>      ::= (* string literal in import_stmt *)
+(* $1187*) <anchor_version>          ::= (* version strings in version: property *)
+(* $1188*) <anchor_url>              ::= (* url_literal values in properties *)
+(* $1189*) <anchor_email_domain>     ::= (* domain part of email_literal *)
+(* $1190*) <anchor_custom>           ::= (* @anchor directive explicitly marks identifier *)
+(* $1191*) <anchor_excluded>         ::= (* @noanchor directive explicitly excludes *)
+(* $1192*) <anchor_weight_high>      ::= 3.0                                    (* hard constraint    *)
+(* $1193*) <anchor_weight_critical>  ::= 2.5                                    (* critical property  *)
+(* $1194*) <anchor_weight_required>  ::= 2.0                                    (* required field     *)
+(* $1195*) <anchor_weight_standard>  ::= 1.0                                    (* standard property  *)
+(* $1196*) <anchor_weight_inherit>   ::= 1.5                                    (* inheritance edge   *)
+(* $1197*) <anchor_weight_dispatch>  ::= 2.0                                    (* conditional guard  *)
+(* $1198*) <anchor_weight_pipeline>  ::= 1.5                                    (* pipeline step      *)
+(* $1199*) <anchor_weight_enum>      ::= 1.0                                    (* enum member        *)
+(* $1200*) <anchor_weight_schema>    ::= 1.5                                    (* schema reference   *)
+(* $1201*) <anchor_set>              ::= (* AR: Set of (token, position, weight) tuples *)
+(* $1202*) <spi_formula>             ::= (* SPI = |AR(source) ∩ tokens(output)| / |AR(source)| *)
+(* $1203*) <spi_valid>               ::= (* SPI = 1.0 iff AnchorRegistry invariant holds *)
+(* $1204*) <spi_invariant>           ::= (* ∀ a ∈ AR: a ∈ tokens(output) before emission *)
+(* $1205*) <tes_formula>             ::= (* TES = Σ w(b) / |tokens(output)| *)
+(* $1206*) <tes_behaviors>           ::= (* b ∈ {properties, constraints, fields, pipeline steps} *)
+(* $1207*) <tes_threshold>           ::= (* Production threshold: TES ≥ 485 *)
+(* $1208*) <spi_threshold>           ::= (* Production threshold: SPI ≥ 99.7% *)
+(* $1209*) <anchor_verification>     ::= (* Phase 06 pre-emit check: ∀ a ∈ AR ∃ a in output *)
+(* $1210*) <anchor_violation>        ::= (* SemanticPreservationError raised if anchor absent *)
+(* $1211*) <anchor_recall>           ::= (* |identified anchors| / |true anchors| *)
+(* $1212*) <anchor_precision>        ::= (* |identified anchors ∩ true anchors| / |identified anchors| *)
+(* $1213*) <high_fai_token>          ::= (* token with Forward Attention Influence ≥ threshold *)
+(* $1214*) <low_fai_token>           ::= (* token with Forward Attention Influence < threshold *)
+(* $1215*) <anchor_candidate>        ::= (* token satisfying any of $1162-$1190 *)
+(* $1216*) <anchor_confirmed>        ::= (* candidate verified against model embedding space *)
+(* $1217*) <anchor_heuristic>        ::= (* production heuristic: proper nouns + opcodes *)
+(* $1218*) <anchor_learning>         ::= (* v5.0: learning-based anchor identification *)
+(* $1219*) <anchor_false_positive>   ::= (* candidate registered but not high-FAI in model *)
+(* $1220*) <anchor_false_negative>   ::= (* high-FAI token not identified by heuristic *)
+(* $1221*) <anchor_conservative>     ::= (* when in doubt, register: reduces false negatives *)
+(* $1222*) <anchor_registry_init>    ::= (* AR = ∅ at Phase 03 start *)
+(* $1223*) <anchor_registry_final>   ::= (* AR immutable after Phase 03 completes *)
+(* $1224*) <anchor_propagation>      ::= (* inherited agents propagate parent anchors *)
+(* $1225*) <anchor_merge>            ::= (* AR(merged) = AR(parent) ∪ AR(child) *)
+(* $1226*) <anchor_shadow>           ::= (* override property: child anchor shadows parent *)
+(* $1227*) <anchor_in_binary>        ::= (* binary hydration: anchors stored in header table *)
+(* $1228*) <anchor_rehydration>      ::= (* binary decompression restores anchor positions *)
+(* $1229*) <anchor_checksum>         ::= (* CRC32 of AR stored in compiled artifact header *)
+(* $1230*) <anchor_audit_trail>      ::= (* list of (token, rule, position) for diagnostics *)
+
+
+(* ============================================================================ *)
+(*  SECTION 20 — OPTIMIZATION PHASE SPECIFICATIONS                              *)
+(*  Rules $1231 – $1310                                                          *)
+(* ============================================================================ *)
+
+(* $1231*) <optimization_pass>        ::= <tree_shake_pass>
+(* $1232*)                              | <constant_fold_pass>
+(* $1233*)                              | <mangle_pass>
+(* $1234*)                              | <dead_code_pass>
+(* $1235*)                              | <inline_pass>
+(* $1236*)                              | <strength_reduction_pass>
+(* $1237*)                              | <common_subexpr_pass>
+(* $1238*) <tree_shake_pass>          ::= (* Remove agent_items unreachable from output contract *)
+(* $1239*) <tree_shake_reachable>     ::= (* item reachable if referenced by AnchorRegistry or *)
+(*         *)                              (* in inheritance chain of compiled agent *)
+(* $1240*) <tree_shake_dead>          ::= (* item never referenced: remove from AST *)
+(* $1241*) <tree_shake_shared>        ::= (* $ctx fields unused by compiled agents: remove *)
+(* $1242*) <tree_shake_schema>        ::= (* #schema definitions unreferenced: remove *)
+(* $1243*) <tree_shake_guard>         ::= (* guards always-true or always-false: evaluate at compile *)
+(* $1244*) <constant_fold_pass>       ::= (* Evaluate compile-time constant expressions *)
+(* $1245*) <constant_fold_string>     ::= (* "a" + "b" → "ab" at compile time *)
+(* $1246*) <constant_fold_bool>       ::= (* true && x → x; false || x → x *)
+(* $1247*) <constant_fold_arithmetic> ::= (* 2 + 2 → 4 at compile time *)
+(* $1248*) <constant_fold_condition>  ::= (* condition always-true: replace with action directly *)
+(* $1249*) <constant_fold_context>    ::= (* $ctx.lang = "es": inline string at reference sites *)
+(* $1250*) <mangle_pass>              ::= (* [OPT] Pro/Enterprise: shorten identifiers *)
+(* $1251*) <mangle_identifier>        ::= (* replace identifier with shortest non-colliding token *)
+(* $1252*) <mangle_table>             ::= (* {original_id → mangled_id} map *)
+(* $1253*) <mangle_exempt>            ::= (* AnchorRegistry tokens exempt from mangling *)
+(* $1254*) <mangle_reserved>          ::= (* LLM-known terms exempt: TypeScript, React, etc. *)
+(* $1255*) <mangle_budget>            ::= (* budget: prefer 1-2 char identifiers *)
+(* $1256*) <mangle_collision>         ::= (* detect and resolve identifier collisions *)
+(* $1257*) <dead_code_pass>           ::= (* Remove properties shadowed by child in merged body *)
+(* $1258*) <dead_property>            ::= (* property overridden in child and never accessed *)
+(* $1259*) <dead_constraint>          ::= (* constraint guard always false after folding *)
+(* $1260*) <dead_schema_field>        ::= (* schema field never referenced in agent *)
+(* $1261*) <inline_pass>              ::= (* Inline single-use shared definitions *)
+(* $1262*) <inline_shared>            ::= (* $ctx referenced once: inline value at reference *)
+(* $1263*) <inline_schema>            ::= (* #schema referenced once: inline anonymous schema *)
+(* $1264*) <inline_agent>             ::= (* small agent referenced once: inline body *)
+(* $1265*) <strength_reduction_pass>  ::= (* Replace expensive ops with cheaper equivalents *)
+(* $1266*) <strength_contains_to_in>  ::= (* superset_op → in_op when set is small *)
+(* $1267*) <strength_and_to_list>     ::= (* a & b & c → [a, b, c] when more compact *)
+(* $1268*) <common_subexpr_pass>      ::= (* Identify and deduplicate repeated subexpressions *)
+(* $1269*) <cse_detection>            ::= (* same subtree appearing multiple times *)
+(* $1270*) <cse_extraction>           ::= (* extract to shared definition if saves tokens *)
+(* $1271*) <optimization_order>       ::= (* constant_fold → tree_shake → inline → cse → mangle *)
+(* $1272*) <optimization_idempotent>  ::= (* applying same pass twice = same result *)
+(* $1273*) <optimization_preserves_anchor> ::= (* no optimization may remove anchor token *)
+(* $1274*) <optimization_preserves_semantics> ::= (* optimized output ≡ unoptimized output *)
+(* $1275*) <tes_impact>               ::= (* optimization increases TES by reducing token count *)
+(* $1276*) <spi_impact>               ::= (* optimization must not reduce SPI *)
+(* $1277*) <optimization_report>      ::= (* Phase 04 emits: tokens_before, tokens_after, ratio *)
+(* $1278*) <optimization_profile>     ::= (* configuration: which passes to run *)
+(* $1279*) <profile_default>          ::= (* fold + shake + inline (no mangle) *)
+(* $1280*) <profile_production>       ::= (* fold + shake + inline + mangle [OPT] *)
+(* $1281*) <profile_experimental>     ::= (* all passes + genetic_tuner [OPT] *)
+(* $1282*) <profile_debug>            ::= (* no optimization: preserve all nodes *)
+(* $1283*) <pass_result>              ::= (* (ast_after, tokens_removed, report) *)
+(* $1284*) <pass_failure>             ::= (* OptimizerError with rollback to pre-pass AST *)
+(* $1285*) <rollback>                 ::= (* on any pass failure: restore pre-pass state *)
+(* $1286*) <genetic_tuner>            ::= (* [OPT] Enterprise: evolutionary optimization *)
+(* $1287*) <genetic_population>       ::= (* set of optimization orderings to evaluate *)
+(* $1288*) <genetic_fitness>          ::= (* TES × SPI / token_count *)
+(* $1289*) <genetic_selection>        ::= (* select top-k orderings by fitness *)
+(* $1290*) <genetic_crossover>        ::= (* combine two orderings *)
+(* $1291*) <genetic_mutation>         ::= (* perturb ordering randomly *)
+(* $1292*) <genetic_generation>       ::= (* one round of selection/crossover/mutation *)
+(* $1293*) <genetic_convergence>      ::= (* stop when fitness delta < threshold *)
+(* $1294*) <token_budget>             ::= (* maximum token count for compiled output *)
+(* $1295*) <token_budget_hard>        ::= (* hard limit: error if exceeded after optimization *)
+(* $1296*) <token_budget_soft>        ::= (* soft limit: warning if exceeded *)
+(* $1297*) <token_count>              ::= (* BPE token count using model-specific tokenizer *)
+(* $1298*) <tokenizer_anthropic>      ::= (* claude-tokenizer: count_tokens API *)
+(* $1299*) <tokenizer_openai>         ::= (* tiktoken: cl100k_base or o200k_base *)
+(* $1300*) <tokenizer_google>         ::= (* sentencepiece: gemini tokenizer *)
+(* $1301*) <tokenizer_buffer>         ::= (* +5% safety buffer on all estimates *)
+(* $1302*) <tokenizer_fallback>       ::= (* whitespace split as fallback estimator *)
+(* $1303*) <compression_ratio>        ::= (* nl_tokens / compiled_tokens *)
+(* $1304*) <compression_ratio_floor>  ::= 1.0    (* no expansion allowed *)
+(* $1305*) <compression_ratio_target> ::= 4.2    (* minimum acceptable ratio *)
+(* $1306*) <compression_ratio_ceiling>::= 6.0    (* theoretical maximum for current corpus *)
+(* $1307*) <mdl_distance>             ::= (* K(I) - |compiled(I)|: distance from Kolmogorov optimal *)
+(* $1308*) <entropy_estimate>         ::= (* Shannon H(I) for instruction I *)
+(* $1309*) <density_score>            ::= (* TES / max_possible_TES: normalized efficiency *)
+(* $1310*) <quality_gate>             ::= (* TES ≥ 485 AND SPI ≥ 99.7% AND ratio ≥ 1.0 *)
+
+
+(* ============================================================================ *)
+(*  SECTION 21 — BINARY HYDRATION PHASE                                         *)
+(*  Rules $1311 – $1370                                                          *)
+(* ============================================================================ *)
+
+(* $1311*) <binary_artifact>          ::= <artifact_header> <artifact_body> <artifact_footer>
+(* $1312*) <artifact_header>          ::= <magic_bytes> <version_bytes> <metadata_block>
+(* $1313*) <magic_bytes>              ::= "PSDL" <artifact_version>             (* 4 byte magic *)
+(* $1314*) <artifact_version>         ::= <byte> <byte>                         (* major.minor *)
+(* $1315*) <metadata_block>           ::= <target_byte> <profile_byte> <anchor_table>
+(* $1316*) <target_byte>              ::= <byte>                                (* enum: 0x01=claude, 0x02=gpt ... *)
+(* $1317*) <profile_byte>             ::= <byte>                                (* enum: 0x01=default, 0x02=prod *)
+(* $1318*) <anchor_table>             ::= <uint16> <anchor_entry>+              (* count + entries *)
+(* $1319*) <anchor_entry>             ::= <uint8> <utf8_string>                 (* weight + token *)
+(* $1320*) <artifact_body>            ::= <compressed_payload>
+(* $1321*) <compressed_payload>       ::= <lz77_compressed> | <raw_payload>
+(* $1322*) <lz77_compressed>          ::= <lz77_header> <lz77_blocks>+
+(* $1323*) <lz77_header>              ::= "LZ" <uint16>                         (* original size *)
+(* $1324*) <lz77_blocks>              ::= <literal_block> | <back_reference>
+(* $1325*) <literal_block>            ::= <uint8> <byte>+                       (* length + bytes *)
+(* $1326*) <back_reference>           ::= <uint16> <uint16>                     (* offset + length *)
+(* $1327*) <raw_payload>              ::= <utf8_string>
+(* $1328*) <artifact_footer>          ::= <crc32_checksum>
+(* $1329*) <crc32_checksum>           ::= <uint32>
+(* $1330*) <msgpack_format>           ::= (* MessagePack encoding of compiled AST *)
+(* $1331*) <cbor_format>              ::= (* CBOR encoding of compiled AST *)
+(* $1332*) <base256_encoding>         ::= (* map bytes 0x00-0xFF to Unicode PUA U+E000-E0FF *)
+(* $1333*) <base64_encoding>          ::= (* standard base64: A-Za-z0-9+/ with = padding *)
+(* $1334*) <utf8_string>              ::= (* UTF-8 encoded string with uint32 length prefix *)
+(* $1335*) <byte>                     ::= (* 8-bit unsigned integer 0x00-0xFF *)
+(* $1336*) <uint8>                    ::= (* 8-bit unsigned integer *)
+(* $1337*) <uint16>                   ::= (* 16-bit unsigned integer, big-endian *)
+(* $1338*) <uint32>                   ::= (* 32-bit unsigned integer, big-endian *)
+(* $1339*) <uint64>                   ::= (* 64-bit unsigned integer, big-endian *)
+(* $1340*) <int16>                    ::= (* 16-bit signed integer, big-endian, two's complement *)
+(* $1341*) <float32>                  ::= (* IEEE 754 single precision *)
+(* $1342*) <float64>                  ::= (* IEEE 754 double precision *)
+(* $1343*) <dehydration>              ::= (* Phase 05: AST → binary artifact *)
+(* $1344*) <rehydration>              ::= (* binary artifact → AST for re-compilation *)
+(* $1345*) <streaming_artifact>       ::= (* chunked binary for streaming API use *)
+(* $1346*) <chunk_header>             ::= <uint16> <uint8>                      (* size + sequence *)
+(* $1347*) <chunk_body>               ::= <byte>+
+(* $1348*) <chunk_terminator>         ::= <uint16> "\x00"                       (* size=0 *)
+(* $1349*) <binary_schema>            ::= (* schema in binary: field names as uint8 indices *)
+(* $1350*) <field_index_table>        ::= <uint8> <utf8_string>+                (* count + names *)
+(* $1351*) <binary_agent>             ::= <uint8> <utf8_string> <binary_body>   (* name + body *)
+(* $1352*) <binary_body>              ::= <binary_item>+
+(* $1353*) <binary_item>              ::= <item_type_byte> <item_payload>
+(* $1354*) <item_type_byte>           ::= "\x01"                                (* property *)
+(*         *)                             | "\x02"                              (* negation *)
+(*         *)                             | "\x03"                              (* constraint *)
+(*         *)                             | "\x04"                              (* schema ref *)
+(*         *)                             | "\x05"                              (* pipeline *)
+(* $1355*) <item_payload>             ::= (* binary-encoded value depending on item_type *)
+(* $1356*) <binary_string>            ::= <uint16> <byte>+
+(* $1357*) <binary_list>              ::= <uint8> <binary_value>+
+(* $1358*) <binary_value>             ::= <binary_string> | <uint32> | <float64> | <byte>
+(* $1359*) <compression_benefit>      ::= (* binary typically 40-60% smaller than text *)
+(* $1360*) <bandwidth_use_case>       ::= (* streaming proxy API: reduce latency *)
+(* $1361*) <cache_use_case>           ::= (* compiled artifacts cached by content hash *)
+(* $1362*) <content_hash>             ::= (* SHA-256 of artifact_body *)
+(* $1363*) <cache_key>                ::= (* content_hash + target_byte + profile_byte *)
+(* $1364*) <cache_hit>                ::= (* serve artifact without re-compilation *)
+(* $1365*) <cache_miss>               ::= (* trigger Phase 01-06 compilation pipeline *)
+(* $1366*) <cache_invalidation>       ::= (* PSDL source change: invalidate by content hash *)
+(* $1367*) <artifact_signing>         ::= (* HMAC-SHA256 of artifact with enterprise key *)
+(* $1368*) <artifact_verification>    ::= (* verify signature before deserialization *)
+(* $1369*) <artifact_encryption>      ::= (* [OPT] AES-256-GCM for enterprise key store *)
+(* $1370*) <artifact_expiry>          ::= (* TTL field in metadata_block *)
+
+
+(* ============================================================================ *)
+(*  SECTION 22 — CODE GENERATION TARGETS                                        *)
+(*  Rules $1371 – $1460                                                          *)
+(* ============================================================================ *)
+
+(* $1371*) <codegen_output>           ::= <claude_xml_output>
+(* $1372*)                              | <gpt_json_output>
+(* $1373*)                              | <gemini_md_output>
+(* $1374*)                              | <deepseek_output>
+(* $1375*)                              | <qwen_output>
+(* $1376*)                              | <binary_output>
+(*  -- CLAUDE XML TARGET --                                                     *)
+(* $1377*) <claude_xml_output>        ::= <xml_preamble>? <xml_agent_element>+
+(* $1378*) <xml_preamble>             ::= "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+(* $1379*) <xml_agent_element>        ::= "<agent" <xml_name_attr> ">" <xml_agent_body> "</agent>"
+(* $1380*) <xml_name_attr>            ::= " name=\"" <agent_name> "\""
+(* $1381*) <xml_agent_body>           ::= <xml_item>*
+(* $1382*) <xml_item>                 ::= <xml_task_element>
+(* $1383*)                              | <xml_stack_element>
+(* $1384*)                              | <xml_context_element>
+(* $1385*)                              | <xml_security_element>
+(* $1386*)                              | <xml_constraints_element>
+(* $1387*)                              | <xml_focus_element>
+(* $1388*)                              | <xml_schema_element>
+(* $1389*)                              | <xml_property_element>
+(* $1390*) <xml_task_element>         ::= "<task>" <text_content> "</task>"
+(* $1391*) <xml_stack_element>        ::= "<stack>" <text_content> "</stack>"
+(* $1392*) <xml_context_element>      ::= "<context" <xml_attr_list> "/>"
+(* $1393*) <xml_security_element>     ::= "<security" <xml_priority_attr>? ">" <xml_rule_list> "</security>"
+(* $1394*) <xml_priority_attr>        ::= " priority=\"critical\""
+(* $1395*) <xml_rule_list>            ::= <xml_rule>+
+(* $1396*) <xml_rule>                 ::= "  - " <text_content> <newline>
+(* $1397*) <xml_constraints_element>  ::= "<constraints>" <xml_constraint_list> "</constraints>"
+(* $1398*) <xml_constraint_list>      ::= <xml_never_element>+
+(* $1399*) <xml_never_element>        ::= "<never>" <text_content> "</never>"
+(* $1400*) <xml_focus_element>        ::= "<focus" <xml_priority_attr>? ">" <text_content> "</focus>"
+(* $1401*) <xml_schema_element>       ::= "<schema name=\"" <schema_name> "\">" <xml_field_list> "</schema>"
+(* $1402*) <xml_field_list>           ::= <xml_field_element>+
+(* $1403*) <xml_field_element>        ::= "<field" <xml_field_attrs> "/>"
+(* $1404*) <xml_field_attrs>          ::= <xml_name_attr> <xml_type_attr> <xml_required_attr>?
+(* $1405*) <xml_type_attr>            ::= " type=\"" <type_string> "\""
+(* $1406*) <xml_required_attr>        ::= " required=\"true\""
+(* $1407*) <xml_property_element>     ::= "<" <property_key> ">" <text_content> "</" <property_key> ">"
+(* $1408*) <xml_attr_list>            ::= <xml_attr>*
+(* $1409*) <xml_attr>                 ::= " " <identifier> "=\"" <text_content> "\""
+(* $1410*) <text_content>             ::= (* escaped text, no XML reserved chars unescaped *)
+(* $1411*) <type_string>              ::= (* string representation of type_expr *)
+(*  -- GPT JSON TARGET --                                                       *)
+(* $1412*) <gpt_json_output>          ::= <json_system_message>
+(* $1413*) <json_system_message>      ::= "{" <json_role_field> "," <json_content_field> "}"
+(* $1414*) <json_role_field>          ::= "\"role\": \"system\""
+(* $1415*) <json_content_field>       ::= "\"content\": {" <json_agent_object> "}"
+(* $1416*) <json_agent_object>        ::= <json_field_list>
+(* $1417*) <json_field_list>          ::= <json_field> ("," <json_field>)*
+(* $1418*) <json_field>               ::= "\"" <identifier> "\": " <json_value>
+(* $1419*) <json_value>               ::= <json_string>
+(* $1420*)                              | <json_number>
+(* $1421*)                              | <json_boolean>
+(* $1422*)                              | <json_null>
+(* $1423*)                              | <json_array>
+(* $1424*)                              | <json_object>
+(* $1425*) <json_string>              ::= '"' <json_string_char>* '"'
+(* $1426*) <json_string_char>         ::= (* any char except '"', '\', control chars, or escaped *)
+(* $1427*) <json_number>              ::= <integer_literal> | <float_literal>
+(* $1428*) <json_boolean>             ::= "true" | "false"
+(* $1429*) <json_null>                ::= "null"
+(* $1430*) <json_array>               ::= "[" <json_array_body>? "]"
+(* $1431*) <json_array_body>          ::= <json_value> ("," <json_value>)*
+(* $1432*) <json_object>              ::= "{" <json_field_list>? "}"
+(* $1433*) <json_constraints>         ::= "\"constraints\": {\"never\": [" <json_array_body> "]}"
+(*  -- GEMINI MARKDOWN TARGET --                                                *)
+(* $1434*) <gemini_md_output>         ::= <md_agent_section>+
+(* $1435*) <md_agent_section>         ::= <md_h2_agent_name> <md_body>
+(* $1436*) <md_h2_agent_name>         ::= "## Agent: " <agent_name> <newline>
+(* $1437*) <md_body>                  ::= <md_item>*
+(* $1438*) <md_item>                  ::= <md_bold_property>
+(* $1439*)                              | <md_h3_section>
+(* $1440*)                              | <md_bullet_list>
+(* $1441*) <md_bold_property>         ::= "**" <property_key> ":**" " " <text_content> <newline>
+(* $1442*) <md_h3_section>            ::= "### " <identifier> <md_priority_tag>? <newline> <md_bullet_list>
+(* $1443*) <md_priority_tag>          ::= " (CRITICAL)" | " (WARNING)" | " (REQUIRED)"
+(* $1444*) <md_bullet_list>           ::= <md_bullet_item>+
+(* $1445*) <md_bullet_item>           ::= "- " <text_content> <newline>
+(* $1446*) <md_constraints_section>   ::= "### Constraints" <newline> <md_never_list>
+(* $1447*) <md_never_list>            ::= <md_never_item>+
+(* $1448*) <md_never_item>            ::= "- NEVER " <text_content> <newline>
+(*  -- DEEPSEEK TARGET --                                                       *)
+(* $1449*) <deepseek_output>          ::= <deepseek_system_block>
+(* $1450*) <deepseek_system_block>    ::= "<｜system｜>" <text_content> "<｜end▁of▁system｜>"
+(* $1451*) <deepseek_think_block>     ::= "<think>" <text_content> "</think>"   (* optional *)
+(*  -- QWEN TARGET --                                                           *)
+(* $1452*) <qwen_output>              ::= "<|im_start|>system" <newline> <text_content> "<|im_end|>"
+(* $1453*) <qwen_system_prefix>       ::= "<|im_start|>system"
+(* $1454*) <qwen_system_suffix>       ::= "<|im_end|>"
+(*  -- BINARY TARGET --                                                         *)
+(* $1455*) <binary_output>            ::= <binary_artifact>
+(*  -- TARGET INDEPENDENCE INVARIANT --                                         *)
+(* $1456*) <target_independence>      ::= (* ∀ t1, t2 ∈ Target: behavior(compile(src, t1)) ≡ behavior(compile(src, t2)) *)
+(* $1457*) <target_equivalence>       ::= (* same anchor set, same behavioral contract, different syntax *)
+(* $1458*) <target_specific_opt>      ::= (* target may use native syntax for anchors *)
+(* $1459*) <anchor_verification_final>::= (* pre-emit: ∀ a ∈ AR: a ∈ tokens(output_for_target) *)
+(* $1460*) <codegen_anchor_check>     ::= (* SemanticPreservationError if any anchor absent *)
+
+
+(* ============================================================================ *)
+(*  SECTION 23 — MULTI-AGENT ORCHESTRATION                                      *)
+(*  Rules $1461 – $1530                                                          *)
+(* ============================================================================ *)
+
+(* $1461*) <orchestration_block>      ::= "@orchestra" <lbrace> <orchestra_body> <rbrace>
+(* $1462*) <orchestra_body>           ::= <orchestra_item>*
+(* $1463*) <orchestra_item>           ::= <agent_def>
+(* $1464*)                              | <routing_rule>
+(* $1465*)                              | <handoff_rule>
+(* $1466*)                              | <fallback_rule>
+(* $1467*)                              | <aggregation_rule>
+(* $1468*) <routing_rule>             ::= "route" <colon> <condition_expr> <fat_arrow_op> <agent_ref> <semicolon>
+(* $1469*) <handoff_rule>             ::= "handoff" <colon> <agent_ref> <arrow_op> <agent_ref> <semicolon>
+(* $1470*) <fallback_rule>            ::= "fallback" <colon> <agent_ref> <semicolon>
+(* $1471*) <aggregation_rule>         ::= "aggregate" <colon> <agg_strategy> <semicolon>
+(* $1472*) <agg_strategy>             ::= "first" | "last" | "majority" | "unanimous" | "weighted"
+(* $1473*) <swarm_def>                ::= "@swarm" <identifier> <lbrace> <swarm_body> <rbrace>
+(* $1474*) <swarm_body>               ::= <swarm_item>*
+(* $1475*) <swarm_item>               ::= <agent_ref> | <swarm_config>
+(* $1476*) <swarm_config>             ::= <property_key> <colon> <value_expr> <semicolon>
+(* $1477*) <swarm_size>               ::= "size" <colon> <integer_literal> <semicolon>
+(* $1478*) <swarm_strategy>           ::= "strategy" <colon> <swarm_strategy_name> <semicolon>
+(* $1479*) <swarm_strategy_name>      ::= "parallel" | "sequential" | "competitive" | "collaborative"
+(* $1480*) <swarm_timeout>            ::= "timeout" <colon> <duration_literal> <semicolon>
+(* $1481*) <swarm_quorum>             ::= "quorum" <colon> <integer_literal> <semicolon>
+(* $1482*) <pipeline_agent>           ::= "@pipeline" <identifier> <lbrace> <pipeline_agent_body> <rbrace>
+(* $1483*) <pipeline_agent_body>      ::= <pipeline_step_def>+
+(* $1484*) <pipeline_step_def>        ::= <step_number>? <agent_ref> <step_config>?
+(* $1485*) <step_number>              ::= <decimal_integer> "."
+(* $1486*) <step_config>              ::= <lbrace> <swarm_config>* <rbrace>
+(* $1487*) <conditional_agent>        ::= "@switch" <identifier> <lbrace> <switch_body> <rbrace>
+(* $1488*) <switch_body>              ::= <switch_case>*
+(* $1489*) <switch_case>              ::= "case" <condition_expr> <colon> <agent_ref> <semicolon>
+(* $1490*) <switch_default>           ::= "default" <colon> <agent_ref> <semicolon>
+(* $1491*) <loop_agent>               ::= "@loop" <identifier> <lbrace> <loop_body> <rbrace>
+(* $1492*) <loop_body>                ::= <loop_config> <agent_body>
+(* $1493*) <loop_config>              ::= <loop_condition> | <loop_count> | <loop_while>
+(* $1494*) <loop_condition>           ::= "while" <colon> <condition_expr> <semicolon>
+(* $1495*) <loop_count>               ::= "repeat" <colon> <integer_literal> <semicolon>
+(* $1496*) <loop_while>               ::= "until" <colon> <condition_expr> <semicolon>
+(* $1497*) <memory_agent>             ::= "@memory" <identifier> <lbrace> <memory_body> <rbrace>
+(* $1498*) <memory_body>              ::= <memory_item>*
+(* $1499*) <memory_item>              ::= <memory_strategy> | <memory_capacity> | <memory_ttl>
+(* $1500*) <memory_strategy>          ::= "strategy" <colon> <memory_strategy_name> <semicolon>
+(* $1501*) <memory_strategy_name>     ::= "short_term" | "long_term" | "episodic" | "semantic"
+(* $1502*) <memory_capacity>          ::= "capacity" <colon> <integer_literal> <semicolon>
+(* $1503*) <memory_ttl>               ::= "ttl" <colon> <duration_literal> <semicolon>
+(* $1504*) <tool_agent>               ::= "@tools" <identifier> <lbrace> <tool_body> <rbrace>
+(* $1505*) <tool_body>                ::= <tool_def>+
+(* $1506*) <tool_def>                 ::= <tool_name> <colon> <tool_spec> <semicolon>
+(* $1507*) <tool_name>                ::= <identifier>                           (* [AR]  *)
+(* $1508*) <tool_spec>                ::= <func_call_expr> | <url_literal> | <string_literal>
+(* $1509*) <critic_agent>             ::= "@critic" <identifier> "<" <agent_ref> <agent_body_block>
+(* $1510*) <judge_agent>              ::= "@judge" <identifier> "<" <agent_ref_list> <agent_body_block>
+(* $1511*) <agent_ref_list>           ::= <agent_ref> <agent_ref_tail>*
+(* $1512*) <agent_ref_tail>           ::= <comma> <agent_ref>
+(* $1513*) <debate_agent>             ::= "@debate" <identifier> <lbrace> <debate_body> <rbrace>
+(* $1514*) <debate_body>              ::= <debate_participant>+ <debate_judge>
+(* $1515*) <debate_participant>       ::= "participant" <colon> <agent_ref> <semicolon>
+(* $1516*) <debate_judge>             ::= "judge" <colon> <agent_ref> <semicolon>
+(* $1517*) <reflection_agent>         ::= "@reflect" <identifier> "<" <agent_ref> <agent_body_block>
+(* $1518*) <verify_agent>             ::= "@verify" <identifier> "<" <agent_ref> <agent_body_block>
+(* $1519*) <refine_agent>             ::= "@refine" <identifier> "<" <agent_ref> <agent_body_block>
+(* $1520*) <escalation_chain>         ::= "@escalate" <identifier> <lbrace> <escalation_body> <rbrace>
+(* $1521*) <escalation_body>          ::= <escalation_level>+
+(* $1522*) <escalation_level>         ::= "level" <decimal_integer> <colon> <agent_ref> <semicolon>
+(* $1523*) <agent_composition>        ::= <agent_ref> "+" <agent_ref> <agent_comp_tail>*
+(* $1524*) <agent_comp_tail>          ::= "+" <agent_ref>
+(* $1525*) <agent_union>              ::= <agent_ref> "|" <agent_ref>
+(* $1526*) <agent_intersection>       ::= <agent_ref> "&" <agent_ref>
+(* $1527*) <agent_difference>         ::= <agent_ref> "-" <agent_ref>
+(* $1528*) <agent_product>            ::= <agent_ref> "*" <agent_ref>
+(* $1529*) <agent_scope>              ::= <agent_ref> "@" <target_name>          (* target-scoped ref *)
+(* $1530*) <agent_version_ref>        ::= <agent_ref> "#" <version_literal>
+
+
+(* ============================================================================ *)
+(*  SECTION 24 — KERNEL PRAGMAS AND RUNTIME HINTS                               *)
+(*  Rules $1531 – $1600                                                          *)
+(* ============================================================================ *)
+
+(* $1531*) <kernel_pragma>            ::= "@kernel" <lbrace> <kernel_body> <rbrace>
+(* $1532*) <kernel_body>              ::= <kernel_item>*
+(* $1533*) <kernel_item>              ::= <config_item>
+(* $1534*)                              | <persist_item>
+(* $1535*)                              | <fault_item>
+(* $1536*)                              | <resource_item>
+(* $1537*)                              | <circuit_item>
+(* $1538*)                              | <event_item>
+(* $1539*) <config_item>              ::= "config" <colon> <config_name> <semicolon>
+(* $1540*) <config_name>              ::= "default" | "production" | "experimental" | <identifier>
+(* $1541*) <persist_item>             ::= "persist" <colon> <persist_backend> <semicolon>
+(* $1542*) <persist_backend>          ::= "memory" | "file" | "redis"           (* memory=free, file=Pro, redis=Enterprise *)
+(* $1543*) <persist_path>             ::= "path" <colon> <string_literal> <semicolon>
+(* $1544*) <persist_encrypt>          ::= "encrypt" <colon> <boolean_literal> <semicolon>  (* [OPT] file/redis *)
+(* $1545*) <persist_ttl>              ::= "ttl" <colon> <duration_literal> <semicolon>
+(* $1546*) <fault_item>               ::= "fault_tolerance" <colon> <boolean_literal> <semicolon>
+(* $1547*) <circuit_item>             ::= "circuit_breaker" <colon> <circuit_config> <semicolon>
+(* $1548*) <circuit_config>           ::= <lbrace> <circuit_threshold> <comma> <circuit_window> <rbrace>
+(* $1549*) <circuit_threshold>        ::= "threshold" <colon> <integer_literal>
+(* $1550*) <circuit_window>           ::= "window" <colon> <duration_literal>
+(* $1551*) <circuit_state>            ::= "closed" | "open" | "half_open"
+(* $1552*) <resource_item>            ::= "resources" <colon> <resource_config> <semicolon>
+(* $1553*) <resource_config>          ::= <lbrace> <max_memory> <comma> <max_cpu> <rbrace>
+(* $1554*) <max_memory>               ::= "max_memory" <colon> <integer_literal> "mb"
+(* $1555*) <max_cpu>                  ::= "max_cpu" <colon> <percentage_literal>
+(* $1556*) <event_item>               ::= "events" <colon> <event_bus_config> <semicolon>
+(* $1557*) <event_bus_config>         ::= "in_process" | "redis_pubsub" | "kafka"
+(* $1558*) <telemetry_item>           ::= "telemetry" <colon> <telemetry_config> <semicolon>
+(* $1559*) <telemetry_config>         ::= <lbrace> <telemetry_fields> <rbrace>
+(* $1560*) <telemetry_fields>         ::= <telemetry_field> ("," <telemetry_field>)*
+(* $1561*) <telemetry_field>          ::= <identifier> <colon> <boolean_literal>
+(* $1562*) <log_level_item>           ::= "log_level" <colon> <log_level> <semicolon>
+(* $1563*) <trace_item>               ::= "trace" <colon> <boolean_literal> <semicolon>
+(* $1564*) <metrics_item>             ::= "metrics" <colon> <metrics_config> <semicolon>
+(* $1565*) <metrics_config>           ::= "prometheus" | "statsd" | "datadog" | "none"
+(* $1566*) <health_item>              ::= "health_check" <colon> <duration_literal> <semicolon>
+(* $1567*) <warmup_item>              ::= "warmup" <colon> <boolean_literal> <semicolon>
+(* $1568*) <lazy_init_item>           ::= "lazy_init" <colon> <boolean_literal> <semicolon>
+(* $1569*) <timeout_item>             ::= "timeout" <colon> <duration_literal> <semicolon>
+(* $1570*) <retry_item>               ::= "retry" <colon> <retry_config> <semicolon>
+(* $1571*) <retry_config>             ::= <lbrace> <retry_max> <comma> <retry_backoff> <rbrace>
+(* $1572*) <retry_max>                ::= "max" <colon> <integer_literal>
+(* $1573*) <retry_backoff>            ::= "backoff" <colon> <duration_literal>
+(* $1574*) <rate_limit_item>          ::= "rate_limit" <colon> <rate_limit_config> <semicolon>
+(* $1575*) <rate_limit_config>        ::= <lbrace> <rate_limit_rps> <comma> <rate_limit_burst> <rbrace>
+(* $1576*) <rate_limit_rps>           ::= "rps" <colon> <integer_literal>
+(* $1577*) <rate_limit_burst>         ::= "burst" <colon> <integer_literal>
+(* $1578*) <cache_item>               ::= "cache" <colon> <cache_config> <semicolon>
+(* $1579*) <cache_config>             ::= <lbrace> <cache_ttl> <comma> <cache_backend> <rbrace>
+(* $1580*) <cache_ttl>                ::= "ttl" <colon> <duration_literal>
+(* $1581*) <cache_backend>            ::= "memory" | "redis" | "none"
+(* $1582*) <queue_item>               ::= "queue" <colon> <queue_config> <semicolon>
+(* $1583*) <queue_config>             ::= "in_memory" | "redis_queue" | "sqs"
+(* $1584*) <graceful_shutdown>        ::= "graceful_shutdown" <colon> <duration_literal> <semicolon>
+(* $1585*) <startup_probe>            ::= "startup_probe" <colon> <url_literal> <semicolon>
+(* $1586*) <liveness_probe>           ::= "liveness_probe" <colon> <url_literal> <semicolon>
+(* $1587*) <readiness_probe>          ::= "readiness_probe" <colon> <url_literal> <semicolon>
+(* $1588*) <concurrency_item>         ::= "concurrency" <colon> <integer_literal> <semicolon>
+(* $1589*) <pool_size_item>           ::= "pool_size" <colon> <integer_literal> <semicolon>
+(* $1590*) <worker_threads_item>      ::= "worker_threads" <colon> <integer_literal> <semicolon>
+(* $1591*) <isolation_item>           ::= "isolation" <colon> <isolation_level> <semicolon>
+(* $1592*) <isolation_level>          ::= "none" | "process" | "container" | "vm"
+(* $1593*) <sandbox_item>             ::= "sandbox" <colon> <boolean_literal> <semicolon>
+(* $1594*) <tls_item>                 ::= "tls" <colon> <boolean_literal> <semicolon>
+(* $1595*) <mtls_item>                ::= "mtls" <colon> <boolean_literal> <semicolon>
+(* $1596*) <auth_item>                ::= "auth" <colon> <auth_config> <semicolon>
+(* $1597*) <auth_config>              ::= "none" | "api_key" | "jwt" | "oauth2" | "mtls"
+(* $1598*) <jwt_algo_item>            ::= "jwt_algo" <colon> <sign_algorithm> <semicolon>
+(* $1599*) <cors_item>                ::= "cors" <colon> <cors_config> <semicolon>
+(* $1600*) <cors_config>              ::= <lbrace> <cors_origins> <rbrace>
+
+
+(* ============================================================================ *)
+(*  SECTION 25 — COMPLETE OPERATOR PRECEDENCE TABLE                             *)
+(*  Rules $1601 – $1660                                                          *)
+(* ============================================================================ *)
+
+(*  PSDL operator precedence (highest to lowest):                               *)
+(*  Level 14: unary: ! ~ - (prefix)                                             *)
+(*  Level 13: function call: f(...)                                             *)
+(*  Level 12: member access: . [] ?.                                            *)
+(*  Level 11: exponentiation: **                                                *)
+(*  Level 10: multiplicative: * / % //                                          *)
+(*  Level 9:  additive: + -                                                     *)
+(*  Level 8:  shift: << >>                                                      *)
+(*  Level 7:  relational: < > <= >= in ∈ ∉ ⊂ ⊃                                *)
+(*  Level 6:  equality: == != ≈                                                 *)
+(*  Level 5:  bitwise AND: &                                                    *)
+(*  Level 4:  bitwise XOR: ^                                                    *)
+(*  Level 3:  bitwise OR: |                                                     *)
+(*  Level 2:  logical: && || => ⇒ ⇔                                            *)
+(*  Level 1:  pipeline: -> → |>                                                 *)
+(*  Level 0:  assignment: = := += -= *= /=                                      *)
+
+(* $1601*) <prec_level_14_unary>      ::= <negation_prefix> | <bang_op> | <negate>
+(* $1602*) <prec_level_13_call>       ::= <func_call_expr>
+(* $1603*) <prec_level_12_access>     ::= <method_call> | <list_index> | <nullsafe_call>
+(* $1604*) <prec_level_11_power>      ::= <exponentiation>
+(* $1605*) <prec_level_10_mul>        ::= <multiplication> | <division> | <modulo> | <floor_div>
+(* $1606*) <prec_level_9_add>         ::= <addition> | <subtraction>
+(* $1607*) <prec_level_8_shift>       ::= <left_shift> | <right_shift>
+(* $1608*) <prec_level_7_relational>  ::= <in_op> | <not_in_op> | <lt_op> | <gt_op>
+(* $1609*)                              | <lte_op> | <gte_op> | <contains_op>
+(* $1610*)                              | <subset_op> | <superset_op>
+(* $1611*) <prec_level_6_equality>    ::= <eq_op> | <neq_op> | <matches_op>
+(* $1612*) <prec_level_5_bitand>      ::= <bitwise_and>
+(* $1613*) <prec_level_4_bitxor>      ::= <bitwise_xor>
+(* $1614*) <prec_level_3_bitor>       ::= <bitwise_or>
+(* $1615*) <prec_level_2_logical>     ::= <and_op> | <or_op> | <implies_op> | <iff_op>
+(* $1616*) <prec_level_1_pipeline>    ::= <arrow_op> | <apply_right>
+(* $1617*) <prec_level_0_assign>      ::= <assign> | <define> | <add_assign>
+(*         *)                             | <sub_assign> | <mul_assign> | <div_assign>
+(* $1618*) <left_associative>         ::= (* levels 9-15: left-to-right associativity *)
+(* $1619*) <right_associative>        ::= (* level 11 (power), level 0 (assign): right-to-left *)
+(* $1620*) <non_associative>          ::= (* relational operators: a < b < c is parse error *)
+(* $1621*) <compose_precedence>       ::= (* & in value context: level 5 (bitwise and) *)
+(* $1622*) <pipeline_precedence>      ::= (* -> in value context: level 1 (lowest non-assign) *)
+(* $1623*) <fat_arrow_precedence>     ::= (* => in constraint: below && above = *)
+(* $1624*) <modifier_precedence>      ::= (* ⚡ ⚠ ∅: postfix, highest precedence *)
+(* $1625*) <inheritance_precedence>   ::= (* < after @agent: not an operator, structural *)
+(* $1626*) <paren_override>           ::= (* grouping: ( expr ) forces desired precedence *)
+(* $1627*) <precedence_example_1>     ::= (* a -> b & c → (a -> b) & c ... WRONG *)
+(*         *)                             (* a -> (b & c) → use parens or structure *)
+(* $1628*) <precedence_example_2>     ::= (* !x && !y → (!x) && (!y) *)
+(* $1629*) <precedence_example_3>     ::= (* a ∈ [x,y] => action → (a ∈ [x,y]) => action *)
+(* $1630*) <precedence_example_4>     ::= (* [a,b,c] ⚡ → list with critical modifier postfix *)
+(* $1631*) <precedence_example_5>     ::= (* f(x) -> g(y) → f(x) then pipeline to g(y) *)
+(* $1632*) <ambiguity_none>           ::= (* PSDL has zero ambiguous productions by P1 *)
+(* $1633*) <disambig_proof>           ::= (* exhaustive inspection of all 1811 rules *)
+(*         *)                             (* confirms FIRST/FOLLOW disjointness            *)
+(* $1634*) <parse_tree_unique>        ::= (* ∀ s ∈ PSDL: exactly one parse tree for s *)
+(* $1635*) <ll2_sufficient>           ::= (* k=2 lookahead sufficient for all rules *)
+(* $1636*) <ll1_sufficient_for>       ::= (* k=1 sufficient for all rules except [LL2] *)
+(* $1637*) <grammar_complexity>       ::= (* O(n) lexer, O(n) parser for all valid PSDL *)
+(* $1638*) <grammar_class>            ::= "LL(2)"                                (* grammar class *)
+(* $1639*) <ll2_subset_of_ll_k>       ::= (* LL(2) ⊂ LL(k) ⊂ context-free *)
+(* $1640*) <psdl_not_context_free>    ::= (* schema forward references require table: type-2+ *)
+(* $1641*) <psdl_practical>           ::= (* single-pass with symbol table: effectively LL(2) *)
+(* $1642*) <symbol_table>             ::= (* maps identifier → (type, position, anchor) *)
+(* $1643*) <symbol_table_init>        ::= (* first pass: collect all agent/schema/shared names *)
+(* $1644*) <symbol_table_lookup>      ::= (* second pass: resolve references *)
+(* $1645*) <two_pass>                 ::= (* pass 1: declare; pass 2: resolve *)
+(* $1646*) <forward_ref>              ::= (* agent A inherits B where B defined after A *)
+(* $1647*) <forward_ref_resolution>   ::= (* allowed; resolved in semantic phase *)
+(* $1648*) <circular_ref_detection>   ::= (* inheritance cycles: SemanticError *)
+(* $1649*) <circular_schema_detection>::= (* self-referencing schema: allowed if recursive_schema *)
+(* $1650*) <inheritance_dag>          ::= (* agent inheritance forms directed acyclic graph *)
+(* $1651*) <inheritance_cycle_error>  ::= (* A < B and B < A: InheritanceCycleError *)
+(* $1652*) <diamond_inheritance>      ::= (* A < B, A < C, B < D, C < D: MRO resolves *)
+(* $1653*) <mro>                      ::= (* Method Resolution Order: C3 linearization *)
+(* $1654*) <c3_linearization>         ::= (* L(A) = A + merge(L(B_i...), [B_i...]) *)
+(* $1655*) <property_override>        ::= (* child property key shadows parent property *)
+(* $1656*) <property_merge>           ::= (* lists merged: child list extends parent list *)
+(* $1657*) <negation_inheritance>     ::= (* child !key cancels parent key: key)  *)
+(* $1658*) <constraint_inheritance>   ::= (* constraints accumulated from all ancestors *)
+(* $1659*) <schema_inheritance>       ::= (* fields accumulated from all ancestor schemas *)
+(* $1660*) <type_widening>            ::= (* child type ≥ parent type: covariant fields *)
+
+
+(* ============================================================================ *)
+(*  SECTION 26 — COMPLETE RESERVED WORD TABLE                                   *)
+(*  Rules $1661 – $1720                                                          *)
+(* ============================================================================ *)
+
+(* $1661*) <all_reserved_words>       ::= <tier_1_reserved> | <tier_2_reserved> | <tier_3_reserved>
+(* $1662*) <tier_1_reserved>          ::= (* unconditionally reserved — cannot be used as identifier *)
+(* $1663*)                                "task" | "context" | "stack" | "focus" | "schema"
+(* $1664*)                              | "tone" | "format" | "security" | "target"
+(* $1665*)                              | "never" | "always" | "shared" | "import" | "export"
+(* $1666*)                              | "from" | "as" | "with" | "for" | "in" | "not" | "is"
+(* $1667*)                              | "if" | "else" | "let" | "const" | "var"
+(* $1668*)                              | "true" | "false" | "null" | "nil" | "none"
+(* $1669*)                              | "yes" | "no" | "on" | "off"
+(* $1670*)                              | "str" | "int" | "float" | "bool" | "bytes"
+(* $1671*)                              | "any" | "void" | "never" | "unknown"
+(* $1672*)                              | "enum" | "map" | "set" | "partial"
+(* $1673*)                              | "required" | "optional" | "readonly"
+(* $1674*)                              | "abstract" | "final" | "override" | "sealed"
+(* $1675*) <tier_2_reserved>          ::= (* reserved in specific contexts — soft keywords *)
+(* $1676*)                                "critical" | "warning" | "deprecated"
+(* $1677*)                              | "experimental" | "internal" | "public" | "private"
+(* $1678*)                              | "default" | "case" | "switch" | "while" | "until"
+(* $1679*)                              | "repeat" | "loop" | "break" | "continue" | "return"
+(* $1680*)                              | "model" | "profile" | "debug" | "trace" | "strict"
+(* $1681*)                              | "permissive" | "compress" | "hydrate" | "mangle"
+(* $1682*)                              | "shake" | "fold" | "anchor" | "noanchor"
+(* $1683*)                              | "route" | "handoff" | "fallback" | "aggregate"
+(* $1684*)                              | "participant" | "judge" | "step" | "level"
+(* $1685*)                              | "swarm" | "pipeline" | "orchestra" | "memory"
+(* $1686*)                              | "tool" | "tools" | "plugin" | "agent"
+(* $1687*) <tier_3_reserved>          ::= (* future-reserved — valid now, reserved for v2.0 *)
+(* $1688*)                                "async" | "await" | "spawn" | "yield"
+(* $1689*)                              | "match" | "when" | "then" | "do" | "end"
+(* $1690*)                              | "class" | "interface" | "trait" | "impl"
+(* $1691*)                              | "new" | "delete" | "typeof" | "instanceof"
+(* $1692*)                              | "this" | "self" | "super" | "base"
+(* $1693*)                              | "throw" | "try" | "catch" | "finally"
+(* $1694*)                              | "assert" | "ensure" | "require" | "invariant"
+(* $1695*)                              | "type" | "kind" | "where" | "given"
+(* $1696*)                              | "forall" | "exists" | "such" | "that"
+(* $1697*)                              | "proof" | "theorem" | "lemma" | "corollary"
+(* $1698*)                              | "axiom" | "rule" | "fact" | "define"
+(* $1699*)                              | "macro" | "template" | "generics"
+(* $1700*)                              | "concurrent" | "atomic" | "lock" | "mutex"
+(* $1701*)                              | "channel" | "signal" | "slot" | "event"
+(* $1702*)                              | "observable" | "stream" | "reactive"
+(* $1703*)                              | "lazy" | "eager" | "strict" | "memoize"
+(* $1704*)                              | "pure" | "impure" | "effect" | "side_effect"
+(* $1705*)                              | "monoid" | "functor" | "monad" | "applicative"
+(* $1706*)                              | "curry" | "partial_apply" | "compose"
+(* $1707*)                              | "benchmark" | "profile" | "measure"
+(* $1708*)                              | "test" | "spec" | "describe" | "it" | "expect"
+(* $1709*)                              | "mock" | "stub" | "spy" | "fake"
+(* $1710*)                              | "migrate" | "rollback" | "checkpoint"
+(* $1711*)                              | "serialize" | "deserialize" | "marshal"
+(* $1712*)                              | "encode" | "decode" | "parse" | "format"
+(* $1713*)                              | "compress" | "decompress" | "archive"
+(* $1714*)                              | "encrypt" | "decrypt" | "sign" | "verify"
+(* $1715*)                              | "hash" | "digest" | "checksum" | "hmac"
+(* $1716*)                              | "token" | "tokenize" | "lemmatize" | "stem"
+(* $1717*)                              | "embed" | "encode" | "project" | "cluster"
+(* $1718*)                              | "train" | "infer" | "predict" | "classify"
+(* $1719*)                              | "rank" | "score" | "weight" | "normalize"
+(* $1720*)                              | "quantize" | "prune" | "distill" | "fine_tune"
+
+
+(* ============================================================================ *)
+(*  SECTION 27 — ERRORS, DIAGNOSTICS AND RECOVERY                               *)
+(*  Rules $1721 – $1780                                                          *)
+(* ============================================================================ *)
+
+(* $1721*) <compiler_error>           ::= <lexer_error> | <parser_error>
+(* $1722*)                              | <semantic_error> | <optimization_error>
+(* $1723*)                              | <codegen_error>
+(* $1724*) <lexer_error>              ::= <invalid_char_error>
+(* $1725*)                              | <unterminated_string_error>
+(* $1726*)                              | <invalid_unicode_escape>
+(* $1727*)                              | <invalid_number_literal>
+(* $1728*) <invalid_char_error>       ::= (* char not in PSDL alphabet; position reported *)
+(* $1729*) <unterminated_string_error>::= (* EOF reached inside string literal *)
+(* $1730*) <invalid_unicode_escape>   ::= (* \\u not followed by 4 hex digits *)
+(* $1731*) <invalid_number_literal>   ::= (* malformed numeric literal *)
+(* $1732*) <parser_error>             ::= <unexpected_token_error>
+(* $1733*)                              | <missing_token_error>
+(* $1734*)                              | <unexpected_eof_error>
+(* $1735*)                              | <ambiguity_error>
+(* $1736*) <unexpected_token_error>   ::= (* token not in FIRST(expected_rule) *)
+(* $1737*) <missing_token_error>      ::= (* expected terminal absent; position reported *)
+(* $1738*) <unexpected_eof_error>     ::= (* EOF inside agent body or schema body *)
+(* $1739*) <ambiguity_error>          ::= (* internal: should never occur if grammar is LL(2) *)
+(* $1740*) <semantic_error>           ::= <type_error>
+(* $1741*)                              | <undefined_ref_error>
+(* $1742*)                              | <inheritance_cycle_error>
+(* $1743*)                              | <anchor_preservation_error>
+(* $1744*)                              | <schema_violation_error>
+(* $1745*)                              | <modifier_conflict_error>
+(* $1746*) <type_error>               ::= (* value type incompatible with field type in schema *)
+(* $1747*) <undefined_ref_error>      ::= (* $ctx.x where x not defined in shared ctx *)
+(* $1748*) <inheritance_cycle_error>  ::= (* A < B and B < A (transitive) *)
+(* $1749*) <anchor_preservation_error>::= (* SemanticPreservationError: anchor absent from output *)
+(* $1750*) <schema_violation_error>   ::= (* required field missing from schema value *)
+(* $1751*) <modifier_conflict_error>  ::= (* critical + deprecated on same property *)
+(* $1752*) <optimization_error>       ::= <pass_error> | <budget_exceeded_error>
+(* $1753*) <pass_error>               ::= (* optimization pass failed; AST rolled back *)
+(* $1754*) <budget_exceeded_error>    ::= (* compiled output exceeds @token_budget *)
+(* $1755*) <codegen_error>            ::= <target_error> | <encoding_error>
+(* $1756*) <target_error>             ::= (* target backend not available or misconfigured *)
+(* $1757*) <encoding_error>           ::= (* UTF-8 encoding failure in output *)
+(* $1758*) <warning>                  ::= <deprecated_usage>
+(* $1759*)                              | <experimental_usage>
+(* $1760*)                              | <low_tes_warning>
+(* $1761*)                              | <low_spi_warning>
+(* $1762*)                              | <unused_shared_warning>
+(* $1763*)                              | <shadowed_property_warning>
+(* $1764*) <deprecated_usage>         ::= (* using a @deprecated property/agent *)
+(* $1765*) <experimental_usage>       ::= (* using @experimental features in production profile *)
+(* $1766*) <low_tes_warning>          ::= (* TES < @tes threshold: efficiency below target *)
+(* $1767*) <low_spi_warning>          ::= (* SPI < 1.0: anchor identification may be incomplete *)
+(* $1768*) <unused_shared_warning>    ::= (* shared definition defined but never referenced *)
+(* $1769*) <shadowed_property_warning>::= (* child property silently shadows parent property *)
+(* $1770*) <error_location>           ::= <file_name> ":" <line_number> ":" <column_number>
+(* $1771*) <file_name>                ::= <string_literal>
+(* $1772*) <line_number>              ::= <decimal_integer>
+(* $1773*) <column_number>            ::= <decimal_integer>
+(* $1774*) <error_message>            ::= <string_literal>
+(* $1775*) <error_context>            ::= <source_snippet> <caret_line>
+(* $1776*) <source_snippet>           ::= (* 3 lines of source around error *)
+(* $1777*) <caret_line>               ::= (* "^" under the offending token *)
+(* $1778*) <error_hint>               ::= (* suggestion for how to fix the error *)
+(* $1779*) <error_code>               ::= "E" <decimal_integer>                 (* E1001 – E9999 *)
+(* $1780*) <diagnostic>               ::= <error_location> <error_code> <error_message> <error_hint>?
+
+
+(* ============================================================================ *)
+(*  SECTION 28 — NORMATIVE SUMMARY AND METALINGUISTIC RULES                     *)
+(*  Rules $1781 – $1811                                                          *)
+(* ============================================================================ *)
+
+(* $1781*) <normative_rule_1>     ::= (* P1: Every valid PSDL program has exactly one parse tree. *)
+(*         *)                          (* No production in this spec is ambiguous. *)
+(* $1782*) <normative_rule_2>     ::= (* P2: Every syntactic construct reduces token count vs NL. *)
+(*         *)                          (* No construct exists for aesthetic reasons. *)
+(* $1783*) <normative_rule_3>     ::= (* P3: Semantic correctness is decidable without LLM exec. *)
+(*         *)                          (* AnchorRegistry verification is purely structural. *)
+(* $1784*) <normative_rule_4>     ::= (* P4: Same source → equivalent behavior for all targets. *)
+(*         *)                          (* Target differences are syntactic, not semantic. *)
+(* $1785*) <normative_rule_5>     ::= (* P5: Parser never backtracks. k ≤ 2 always sufficient. *)
+(* $1786*) <grammar_total_rules>  ::= (* Total production rules in this specification: 1811 *)
+(* $1787*) <section_count>        ::= (* 28 sections, each fully self-contained *)
+(* $1788*) <rule_numbering>       ::= (* Rules numbered $001 – $1811 sequentially *)
+(*         *)                          (* Gaps may exist in future extensions *)
+(* $1789*) <version_history>      ::= <psdl_v1_0> | <psdl_v1_1> | <psdl_v1_2>
+(*         *)                          | <psdl_v1_3> | <psdl_v1_4>
+(* $1790*) <psdl_v1_0>            ::= (* initial: @agent, #schema, !, ->, ⚡, ∅ *)
+(* $1791*) <psdl_v1_1>            ::= (* added: inheritance <, !shared ctx, ⚠ *)
+(* $1792*) <psdl_v1_2>            ::= (* added: #schema required fields, enum type, & compose *)
+(* $1793*) <psdl_v1_3>            ::= (* added: AnchorRegistry, TES, SPI, multi-target *)
+(* $1794*) <psdl_v1_4>            ::= (* current: binary hydration, kernel pragmas, orchestration *)
+(* $1795*) <compatibility>        ::= (* v1.x programs are valid v1.4.0 programs *)
+(* $1796*) <breaking_changes>     ::= (* v1.4.0 has no breaking changes vs v1.3.x *)
+(* $1797*) <extension_mechanism>  ::= (* new operators: submit RFC to psdl-spec repo *)
+(* $1798*) <rfc_process>          ::= (* RFC → review → experimental → stable → normative *)
+(* $1799*) <experimental_ops>     ::= (* @experimental: valid syntax, undefined semantics in strict mode *)
+(* $1800*) <stability_promise>    ::= (* stable rules never removed; may be deprecated *)
+(* $1801*) <deprecation_policy>   ::= (* deprecated in vN.M; removed no earlier than v(N+1).0 *)
+(* $1802*) <test_suite>           ::= (* psdt/test/: 34+ parser tests + integration + stress *)
+(* $1803*) <conformance>          ::= (* a compiler is PSDL-conformant iff: *)
+(*         *)                          (* (1) accepts all programs in test_suite/valid/ *)
+(*         *)                          (* (2) rejects all programs in test_suite/invalid/ *)
+(*         *)                          (* (3) produces output satisfying AnchorRegistry invariant *)
+(* $1804*) <reference_impl>       ::= (* PSDT v4.2 TypeScript is the reference implementation *)
+(* $1805*) <formal_semantics>     ::= (* denotational semantics deferred to companion paper *)
+(* $1806*) <psdl_turing>          ::= (* PSDL is NOT Turing-complete: no general recursion *)
+(*         *)                          (* agent inheritance DAG is acyclic by definition *)
+(* $1807*) <psdl_decidable>       ::= (* all PSDL properties (type-check, anchor-check) decidable *)
+(* $1808*) <psdl_total>           ::= (* PSDT compiler always terminates *)
+(* $1809*) <copyright_notice>     ::= (* Copyright 2026 automate.dev, Buenos Aires, AR *)
+(*         *)                          (* PSDL Spec v1.4.0 — Dual License: MIT + Proprietary *)
+(* $1810*) <spec_uri>             ::= (* https://automate.dev/psdt/spec/psdl-v1.4.0.bnf *)
+(* $1811*) <end_of_spec>          ::= (* END OF PSDL v1.4.0 FORMAL GRAMMAR SPECIFICATION *)
+(*         *)                          (* 1811 production rules. PSDT v4.2 reference impl. *)
+(*         *)                          (* Marcus @ automate.dev — Buenos Aires, Argentina *)
+(*         *)                          (* March 2026                                       *)
