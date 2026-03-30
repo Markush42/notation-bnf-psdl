@@ -17,4 +17,4 @@ of LLM instructions with compile-time preservation guarantees.
 ## License
 
 Dual — MIT Core + Proprietary Enterprise  
-© 2026 automate.dev, Buenos Aires, Argentina
+© 2026 kyan-labs, Buenos Aires, Argentina
