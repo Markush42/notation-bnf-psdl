@@ -8,12 +8,9 @@
 (*  License : Dual — MIT Core + Proprietary Enterprise                         *)
 (*                                                                              *)
 (*  This file constitutes the normative specification of the PSDL grammar.     *)
-(*  All production rules are numbered for cross-reference. Rules marked        *)
-(*  [LL2] require two-token lookahead in the PSDT parser. Rules marked         *)
-(*  [AR] contribute tokens to the AnchorRegistry in Phase 03.                  *)
-(*  Rules marked [OPT] are available only in Pro/Enterprise tiers.             *)
+(*  All production rules are numbered for cross-reference.                     *)
 (*                                                                              *)
-(*  Notation conventions:                                                       *)
+(*  NOTATION CONVENTIONS:                                                       *)
 (*    <rule>        non-terminal symbol                                         *)
 (*    "token"       terminal literal (case-sensitive unless noted)              *)
 (*    A | B         ordered choice (first match wins — PEG semantics)           *)
@@ -25,6 +22,52 @@
 (*    { A }         zero or more repetitions (same as A*)                       *)
 (*    (* ... *)     comment — not part of the grammar                          *)
 (*    $001          rule number for cross-reference                             *)
+(*                                                                              *)
+(*  ANNOTATIONS:                                                                *)
+(*    [LL2]         Rule requires two-token lookahead in the PSDT parser.      *)
+(*    [AR]          Tokens from this rule contribute to AnchorRegistry.        *)
+(*    [OPT]         Rule only available in Pro/Enterprise tiers.               *)
+(*                                                                              *)
+(*  All annotations appear at the end of the rule line, e.g.:                  *)
+(*    <rule> ::= ... (* [LL2] *)                                                *)
+(* ============================================================================ *)
+
+
+(* ============================================================================ *)
+(*  TABLE OF CONTENTS                                                          *)
+(*  (Click on section headers to jump)                                         *)
+(* ============================================================================ *)
+
+(*  SECTION 1  — PROGRAM STRUCTURE                                 *)
+(*  SECTION 2  — AGENT DEFINITIONS                                  *)
+(*  SECTION 3  — PROPERTY VALUES AND EXPRESSIONS                    *)
+(*  SECTION 4  — NEGATION AND CONSTRAINT STATEMENTS                  *)
+(*  SECTION 5  — FOCUS AND CONTEXT STATEMENTS                        *)
+(*  SECTION 6  — MODIFIER SYSTEM                                     *)
+(*  SECTION 7  — SCHEMA DEFINITIONS                                  *)
+(*  SECTION 8  — TYPE SYSTEM                                         *)
+(*  SECTION 9  — SHARED DEFINITIONS                                  *)
+(*  SECTION 10 — DIRECTIVE STATEMENTS                                *)
+(*  SECTION 11 — FUNCTION CALLS                                      *)
+(*  SECTION 12 — LIST AND ENUM EXPRESSIONS                           *)
+(*  SECTION 13 — LITERAL VALUES                                      *)
+(*  SECTION 14 — IDENTIFIER AND LEXICAL RULES                        *)
+(*  SECTION 15 — COMMENT SYNTAX                                      *)
+(*  SECTION 16 — OPERATOR TAXONOMY                                   *)
+(*  SECTION 17 — UNICODE OPERATOR FULL TABLE                         *)
+(*  SECTION 18 — LL(1)/LL(2) DISAMBIGUATION RULES                    *)
+(*                                                                   *)
+(*  ============ SEMANTICS & COMPILER PHASES ============           *)
+(*  SECTION 19 — ANCHORREGISTRY SPECIFICATION (semantics)           *)
+(*  SECTION 20 — OPTIMIZATION PHASE SPECIFICATIONS (compiler)       *)
+(*  SECTION 21 — BINARY HYDRATION PHASE (compiler)                  *)
+(*  SECTION 22 — CODE GENERATION TARGETS (compiler)                 *)
+(*  SECTION 23 — MULTI-AGENT ORCHESTRATION (semantics)              *)
+(*  SECTION 24 — KERNEL PRAGMAS AND RUNTIME HINTS (compiler)        *)
+(*  SECTION 25 — COMPLETE OPERATOR PRECEDENCE TABLE (semantics)     *)
+(*  SECTION 26 — COMPLETE RESERVED WORD TABLE (lexical)             *)
+(*  SECTION 27 — ERRORS, DIAGNOSTICS AND RECOVERY (semantics)       *)
+(*  SECTION 28 — NORMATIVE SUMMARY AND METALINGUISTIC RULES         *)
 (* ============================================================================ *)
 
 
@@ -1379,8 +1422,17 @@
 
 
 (* ============================================================================ *)
-(*  SECTION 19 — ANCHORREGISTRY SPECIFICATION                                   *)
-(*  Rules $1161 – $1230                                                          *)
+(*  ============ SEMANTICS & COMPILER PHASES ============                      *)
+(*  The following sections are normative specifications for the semantic       *)
+(*  analysis, optimization, code generation, and runtime phases of the PSDL    *)
+(*  compiler. They are not part of the syntactic grammar but are essential     *)
+(*  for a conformant implementation.                                           *)
+(* ============================================================================ *)
+
+
+(* ============================================================================ *)
+(*  SECTION 19 — ANCHORREGISTRY SPECIFICATION (semantics)                      *)
+(*  Rules $1161 – $1230                                                         *)
 (* ============================================================================ *)
 
 (*  Rules in this section are semantics-phase specifications, not syntax rules.  *)
@@ -1463,8 +1515,8 @@
 
 
 (* ============================================================================ *)
-(*  SECTION 20 — OPTIMIZATION PHASE SPECIFICATIONS                              *)
-(*  Rules $1231 – $1310                                                          *)
+(*  SECTION 20 — OPTIMIZATION PHASE SPECIFICATIONS (compiler)                  *)
+(*  Rules $1231 – $1310                                                         *)
 (* ============================================================================ *)
 
 (* $1231*) <optimization_pass>        ::= <tree_shake_pass>
@@ -1551,8 +1603,8 @@
 
 
 (* ============================================================================ *)
-(*  SECTION 21 — BINARY HYDRATION PHASE                                         *)
-(*  Rules $1311 – $1370                                                          *)
+(*  SECTION 21 — BINARY HYDRATION PHASE (compiler)                             *)
+(*  Rules $1311 – $1370                                                         *)
 (* ============================================================================ *)
 
 (* $1311*) <binary_artifact>          ::= <artifact_header> <artifact_body> <artifact_footer>
@@ -1622,8 +1674,8 @@
 
 
 (* ============================================================================ *)
-(*  SECTION 22 — CODE GENERATION TARGETS                                        *)
-(*  Rules $1371 – $1460                                                          *)
+(*  SECTION 22 — CODE GENERATION TARGETS (compiler)                            *)
+(*  Rules $1371 – $1460                                                         *)
 (* ============================================================================ *)
 
 (* $1371*) <codegen_output>           ::= <claude_xml_output>
@@ -1726,8 +1778,8 @@
 
 
 (* ============================================================================ *)
-(*  SECTION 23 — MULTI-AGENT ORCHESTRATION                                      *)
-(*  Rules $1461 – $1530                                                          *)
+(*  SECTION 23 — MULTI-AGENT ORCHESTRATION (semantics)                         *)
+(*  Rules $1461 – $1530                                                         *)
 (* ============================================================================ *)
 
 (* $1461*) <orchestration_block>      ::= "@orchestra" <lbrace> <orchestra_body> <rbrace>
@@ -1803,8 +1855,8 @@
 
 
 (* ============================================================================ *)
-(*  SECTION 24 — KERNEL PRAGMAS AND RUNTIME HINTS                               *)
-(*  Rules $1531 – $1600                                                          *)
+(*  SECTION 24 — KERNEL PRAGMAS AND RUNTIME HINTS (compiler)                   *)
+(*  Rules $1531 – $1600                                                         *)
 (* ============================================================================ *)
 
 (* $1531*) <kernel_pragma>            ::= "@kernel" <lbrace> <kernel_body> <rbrace>
@@ -1880,8 +1932,8 @@
 
 
 (* ============================================================================ *)
-(*  SECTION 25 — COMPLETE OPERATOR PRECEDENCE TABLE                             *)
-(*  Rules $1601 – $1660                                                          *)
+(*  SECTION 25 — COMPLETE OPERATOR PRECEDENCE TABLE (semantics)                *)
+(*  Rules $1601 – $1660                                                         *)
 (* ============================================================================ *)
 
 (*  PSDL operator precedence (highest to lowest):                               *)
@@ -1967,8 +2019,8 @@
 
 
 (* ============================================================================ *)
-(*  SECTION 26 — COMPLETE RESERVED WORD TABLE                                   *)
-(*  Rules $1661 – $1720                                                          *)
+(*  SECTION 26 — COMPLETE RESERVED WORD TABLE (lexical)                        *)
+(*  Rules $1661 – $1720                                                         *)
 (* ============================================================================ *)
 
 (* $1661*) <all_reserved_words>       ::= <tier_1_reserved> | <tier_2_reserved> | <tier_3_reserved>
@@ -2034,8 +2086,8 @@
 
 
 (* ============================================================================ *)
-(*  SECTION 27 — ERRORS, DIAGNOSTICS AND RECOVERY                               *)
-(*  Rules $1721 – $1780                                                          *)
+(*  SECTION 27 — ERRORS, DIAGNOSTICS AND RECOVERY (semantics)                  *)
+(*  Rules $1721 – $1780                                                         *)
 (* ============================================================================ *)
 
 (* $1721*) <compiler_error>           ::= <lexer_error> | <parser_error>
@@ -2101,8 +2153,8 @@
 
 
 (* ============================================================================ *)
-(*  SECTION 28 — NORMATIVE SUMMARY AND METALINGUISTIC RULES                     *)
-(*  Rules $1781 – $1811                                                          *)
+(*  SECTION 28 — NORMATIVE SUMMARY AND METALINGUISTIC RULES                    *)
+(*  Rules $1781 – $1811                                                         *)
 (* ============================================================================ *)
 
 (* $1781*) <normative_rule_1>     ::= (* P1: Every valid PSDL program has exactly one parse tree. *)
