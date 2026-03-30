@@ -10,7 +10,7 @@ of LLM instructions with compile-time preservation guarantees.
 
 ## Companion
 
-- Compiler: PSDT v4.2 (TypeScript) — `automate.dev/psdt`
+- Compiler: PSDT v4.2 (TypeScript) — `kyan-labs/psdt`
 - Paper: *PSDL: A Formal DSL for Semantic Compression of LLM Instructions*
   (system description, arXiv cs.CL/cs.PL, March 2026)
 
